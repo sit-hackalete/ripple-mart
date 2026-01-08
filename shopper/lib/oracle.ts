@@ -16,6 +16,13 @@ export interface PrepareEscrowResponse {
 export interface EscrowStatusResponse {
   txHash?: string;
   dbId: string;
+  buyerAddress: string;
+  sellerAddress: string;
+  amount: string;
+  cancelAfter: number;
+  isExpired: boolean;
+  condition: string;
+  createdAt: string;
   currentStatus: string;
   nextStatus: string;
   secondsToNextStage: number;

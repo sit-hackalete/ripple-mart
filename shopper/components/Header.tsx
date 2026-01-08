@@ -78,6 +78,19 @@ export default function Header() {
 
         {/* Right Side Actions */}
         <div className="flex items-center gap-3">
+          {/* Tracking Button */}
+          {isConnected && (
+            <button
+              onClick={() => setIsTrackingModalOpen(true)}
+              className="p-2 text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400 transition-colors relative"
+              title="Track Deliveries"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+            </button>
+          )}
+
           {/* Wallet Balance - Interactive */}
           {isConnected && walletAddress ? (
             <button

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useWallet } from '@/lib/wallet-context';
 import { useRouter } from 'next/navigation';
@@ -16,6 +16,13 @@ export default function CheckoutPage() {
   const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Use useEffect for the empty cart redirection to avoid the "setState in render" warning
+  useEffect(() => {
+    if (isConnected && items.length === 0 && !isProcessing) {
+      router.push('/cart');
+    }
+  }, [items.length, isConnected, router, isProcessing]);
 
   if (!isConnected) {
     return (
@@ -37,8 +44,7 @@ export default function CheckoutPage() {
   }
 
   if (items.length === 0) {
-    router.push('/cart');
-    return null;
+    return null; // Let the useEffect handle the redirection
   }
 
   const handleCheckout = async () => {
@@ -79,6 +85,7 @@ export default function CheckoutPage() {
       // --- STEP 2: CREATE ESCROW ON LEDGER ---
       const { response } = await sdk.methods.signAndSubmitAndWait({
         TransactionType: 'EscrowCreate',
+        Account: walletAddress,
         Destination: merchantAddress,
         Amount: amountInDrops,
         Condition: prepared.condition,

@@ -4,7 +4,6 @@ import Log, { ActionType } from "../models/Log"
 import { generateEscrowTerms } from "../services/oracle"
 import { encrypt, decrypt } from "../utils/crypto"
 import { getJourneyStage } from "../services/simulation"
-import { submitEscrowFinish, submitEscrowCancel } from "../services/xrpl"
 import { isoTimeToRippleTime } from "xrpl"
 
 const router = Router()
@@ -198,6 +197,13 @@ async function returnEscrowStatus(escrow: any, res: any) {
   if (escrow.status === EscrowStatus.FINISHED || escrow.status === EscrowStatus.CANCELLED || escrow.status === EscrowStatus.FAILED) {
     return res.json({
       txHash: escrow.txHash,
+      dbId: escrow._id,
+      buyerAddress: escrow.buyerAddress,
+      sellerAddress: escrow.sellerAddress,
+      amount: escrow.amount,
+      cancelAfter: escrow.cancelAfter,
+      condition: escrow.condition,
+      createdAt: escrow.createdAt,
       currentStatus: escrow.status,
       nextStatus: "NONE",
       secondsToNextStage: 0,
@@ -207,22 +213,38 @@ async function returnEscrowStatus(escrow: any, res: any) {
         nextStatus: "NONE" as const,
         secondsToNextStage: 0,
         isConfirmable: false,
-        message: escrow.status === EscrowStatus.FINISHED ? "Funds released" : (escrow.status === EscrowStatus.FAILED ? "Oracle failed to process" : "Escrow cancelled"),
+        message: escrow.status === EscrowStatus.FINISHED ? "Your Order has been delivered" : (escrow.status === EscrowStatus.FAILED ? "Oracle failed to process" : "Escrow cancelled"),
         location: "N/A"
       }
     })
   }
 
-    const journey = getJourneyStage(escrow.createdAt, escrow.status)
+  const journey = getJourneyStage(escrow.createdAt, escrow.status)
 
-    // Check if the record was auto-finalized by the listener while we were polling
-    if (!escrow.isFinalized && escrow.txHash && escrow.offerSequence) {
-      await Escrow.updateOne({ _id: escrow._id }, { isFinalized: true, status: EscrowStatus.PENDING })
-    }
+  // Check if the record was auto-finalized by the listener while we were polling
+  if (!escrow.isFinalized && escrow.txHash && escrow.offerSequence) {
+    await Escrow.updateOne({ _id: escrow._id }, { isFinalized: true, status: EscrowStatus.PENDING })
+  }
 
-    return res.json({
+  // Clear stuck isProcessing lock if older than 2 minutes
+  if (escrow.isProcessing && (Date.now() - escrow.updatedAt.getTime() > 120000)) {
+    console.log(`[Status] Clearing stale processing lock for: ${escrow.txHash || escrow._id}`)
+    await Escrow.updateOne({ _id: escrow._id }, { isProcessing: false })
+  }
+
+  const nowRippleTime = isoTimeToRippleTime(new Date().toISOString())
+  const isExpired = nowRippleTime >= escrow.cancelAfter
+
+  return res.json({
     txHash: escrow.txHash,
     dbId: escrow._id,
+    buyerAddress: escrow.buyerAddress,
+    sellerAddress: escrow.sellerAddress,
+    amount: escrow.amount,
+    cancelAfter: escrow.cancelAfter,
+    isExpired,
+    condition: escrow.condition,
+    createdAt: escrow.createdAt,
     currentStatus: journey.currentStatus,
     nextStatus: journey.nextStatus,
     secondsToNextStage: journey.secondsToNextStage,
@@ -269,49 +291,30 @@ router.post("/confirm/:txHash", async (req, res) => {
       })
     }
 
-    // Decrypt fulfillment
+    // Submit EscrowFinish to XRPL
+    // const xrplResponse = await submitEscrowFinish(...) // Disabled for manual flow
+    
+    // Return fulfillment to frontend so user can sign in their wallet
     const fulfillment = decrypt(escrow.fulfillment)
 
-    // Submit EscrowFinish to XRPL
-    const xrplResponse = await submitEscrowFinish(
-      escrow.buyerAddress,
-      escrow.offerSequence!,
-      fulfillment,
-      escrow.condition
-    )
-
-    const engineResult = xrplResponse.result.meta && typeof xrplResponse.result.meta !== 'string' 
-      ? (xrplResponse.result.meta as any).TransactionResult 
-      : "UNKNOWN"
-
-    // Log the XRPL result
+    // Log the manual release request
     await Log.create({
       txHash: escrow.txHash,
-      engineResult,
-      engineMessage: JSON.stringify(xrplResponse.result),
+      engineResult: "MANUAL_REVEAL",
+      engineMessage: "Secret fulfillment revealed to user for manual signing",
       actionType: ActionType.FINISH
     })
 
-    if (engineResult === "tesSUCCESS" || engineResult === "tefALREADY") {
-      // Update status in DB and release lock
-      await Escrow.updateOne(
-        { _id: escrow._id },
-        { status: EscrowStatus.FINISHED, isProcessing: false }
-      )
-      
-      res.json({
-        message: "Escrow finished successfully",
-        xrplResponse
-      })
-    } else {
-      // If it failed on ledger, release lock to allow retry
-      await Escrow.updateOne({ _id: escrow._id }, { isProcessing: false })
-      res.status(500).json({ 
-        error: "XRPL transaction failed", 
-        engineResult,
-        xrplResponse 
-      })
-    }
+    // Release the lock immediately since the backend isn't submitting the tx
+    await Escrow.updateOne({ _id: escrow._id }, { isProcessing: false })
+
+    res.json({
+      message: "Fulfillment revealed",
+      fulfillment,
+      condition: escrow.condition,
+      owner: escrow.buyerAddress,
+      offerSequence: escrow.offerSequence
+    })
   } catch (error: any) {
     console.error("Error confirming escrow:", error)
     if (escrow) {
@@ -361,44 +364,22 @@ router.post("/refund/:txHash", async (req, res) => {
       })
     }
 
-    // Submit EscrowCancel to XRPL
-    const xrplResponse = await submitEscrowCancel(
-      escrow.buyerAddress,
-      escrow.offerSequence!
-    )
-
-    const engineResult = xrplResponse.result.meta && typeof xrplResponse.result.meta !== 'string' 
-      ? (xrplResponse.result.meta as any).TransactionResult 
-      : "UNKNOWN"
-
-    // Log the XRPL result
+    // Log the manual refund request
     await Log.create({
       txHash: escrow.txHash,
-      engineResult,
-      engineMessage: JSON.stringify(xrplResponse.result),
+      engineResult: "MANUAL_REFUND_READY",
+      engineMessage: "Escrow ready for manual refund signing",
       actionType: ActionType.CANCEL
     })
 
-    if (engineResult === "tesSUCCESS" || engineResult === "tefALREADY") {
-      // Update status in DB and release lock
-      await Escrow.updateOne(
-        { _id: escrow._id },
-        { status: EscrowStatus.CANCELLED, isProcessing: false }
-      )
-      
-      res.json({
-        message: "Escrow refunded successfully",
-        xrplResponse
-      })
-    } else {
-      // If it failed on ledger, release lock
-      await Escrow.updateOne({ _id: escrow._id }, { isProcessing: false })
-      res.status(500).json({ 
-        error: "XRPL transaction failed", 
-        engineResult,
-        xrplResponse 
-      })
-    }
+    // Release lock since user will sign
+    await Escrow.updateOne({ _id: escrow._id }, { isProcessing: false })
+
+    res.json({
+      message: "Escrow ready for refund",
+      owner: escrow.buyerAddress,
+      offerSequence: escrow.offerSequence
+    })
   } catch (error: any) {
     console.error("Error refunding escrow:", error)
     if (escrow) {

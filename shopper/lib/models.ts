@@ -44,15 +44,14 @@ export interface CartItem {
 }
 
 export type DeliveryStage = 
-  | "order_placed"
-  | "order_shipped"
-  | "in_transit"
-  | "at_sorting_facility"
-  | "out_for_delivery"
-  | "delivered";
+  | "PENDING"
+  | "IN_TRANSIT"
+  | "DELIVERED"
+  | "FINISHED"
+  | "CANCELLED";
 
 export interface DeliveryStatus {
-  stage: DeliveryStage;
+  stage: DeliveryStage | string;
   timestamp: Date;
   location?: string;
   carrier?: string;
@@ -65,9 +64,10 @@ export interface Order {
   total: number;
   status: "pending" | "completed" | "cancelled";
   transactionHash?: string;
+  oracleDbId?: string; // Link to the Oracle backend record
   createdAt?: Date;
   deliveryTracking?: DeliveryStatus[];
-  currentDeliveryStage?: DeliveryStage;
+  currentDeliveryStage?: DeliveryStage | string;
   estimatedDeliveryDate?: Date;
 }
 

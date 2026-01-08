@@ -24,7 +24,10 @@ export const startLedgerListener = async (walletAddresses: string[]) => {
       })
 
       client.on("transaction", async (tx) => {
-        if (tx.transaction.TransactionType === "EscrowCreate") {
+        const type = tx.transaction.TransactionType
+        
+        // --- 1. Detect New Escrows ---
+        if (type === "EscrowCreate") {
           const escrowTx = tx.transaction as EscrowCreate
           const txHash = tx.transaction.hash!
           const condition = escrowTx.Condition
@@ -58,6 +61,48 @@ export const startLedgerListener = async (walletAddresses: string[]) => {
             })
 
             console.log(`[Listener] Successfully finalized escrow ${txHash}`)
+          }
+        }
+
+        // --- 2. Detect Finished Escrows (Manual Release) ---
+        if (type === "EscrowFinish") {
+          const finishTx = tx.transaction as any
+          const offerSequence = finishTx.OfferSequence
+          const owner = finishTx.Owner
+
+          console.log(`[Listener] Detected EscrowFinish on ledger for Sequence: ${offerSequence}`)
+
+          const match = await Escrow.findOne({ 
+            offerSequence, 
+            buyerAddress: owner,
+            status: { $ne: EscrowStatus.FINISHED }
+          })
+
+          if (match) {
+            match.status = EscrowStatus.FINISHED
+            await match.save()
+            console.log(`[Listener] Database updated: Escrow ${match.txHash} is now FINISHED`)
+          }
+        }
+
+        // --- 3. Detect Cancelled Escrows (Manual Refund) ---
+        if (type === "EscrowCancel") {
+          const cancelTx = tx.transaction as any
+          const offerSequence = cancelTx.OfferSequence
+          const owner = cancelTx.Owner
+
+          console.log(`[Listener] Detected EscrowCancel on ledger for Sequence: ${offerSequence}`)
+
+          const match = await Escrow.findOne({ 
+            offerSequence, 
+            buyerAddress: owner,
+            status: { $ne: EscrowStatus.CANCELLED }
+          })
+
+          if (match) {
+            match.status = EscrowStatus.CANCELLED
+            await match.save()
+            console.log(`[Listener] Database updated: Escrow ${match.txHash} is now CANCELLED`)
           }
         }
       })
