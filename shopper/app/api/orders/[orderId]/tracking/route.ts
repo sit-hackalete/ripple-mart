@@ -42,7 +42,7 @@ export async function PATCH(
       }
 
       // If delivered, update order status to completed
-      if (stage === "delivered") {
+      if (stage === "delivered" || stage === "DELIVERED") {
         await db.collection("orders").updateOne(
           { _id: new ObjectId(orderId) },
           {

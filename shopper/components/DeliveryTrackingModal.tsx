@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Order, DeliveryStage, DeliveryStatus } from '@/lib/models';
-import DeliveryConfirmationModal from '@/components/DeliveryConfirmationModal';
-import OrderFeedbackForm from '@/components/OrderFeedbackForm';
+import { Order, DeliveryStage } from '@/lib/models';
+import { oracleApi, EscrowStatusResponse } from '@/lib/oracle';
+import sdk from '@crossmarkio/sdk';
 
 interface DeliveryTrackingModalProps {
   isOpen: boolean;
@@ -11,35 +11,212 @@ interface DeliveryTrackingModalProps {
   walletAddress: string | null;
 }
 
-const DELIVERY_STAGES: { key: DeliveryStage; label: string; icon: string; description?: string }[] = [
-  { key: 'order_placed', label: 'Order Placed', icon: '📦', description: 'Your order has been confirmed' },
-  { key: 'order_shipped', label: 'Order Shipped', icon: '🚚', description: 'Shipped from seller' },
-  { key: 'on_freight', label: 'On Freight', icon: '✈️', description: 'In transit via plane or ship' },
-  { key: 'arrived_singapore', label: 'Arrived in Singapore', icon: '🇸🇬', description: 'Package has arrived in Singapore' },
-  { key: 'at_sorting_facility', label: 'At Sorting Facility', icon: '🏭', description: 'Being sorted for delivery' },
-  { key: 'out_for_delivery', label: 'Out for Delivery', icon: '🚗', description: 'On the way to you' },
-  { key: 'delivered', label: 'Delivered', icon: '✅', description: 'Item has been delivered' },
+const DELIVERY_STAGES: { key: string; label: string; icon: string }[] = [
+  { key: 'PENDING', label: 'Shenzhen, China', icon: '🏭' },
+  { key: 'IN_TRANSIT', label: 'In Transit', icon: '✈️' },
+  { key: 'DELIVERED', label: 'Singapore', icon: '🇸🇬' },
+  { key: 'FINISHED', label: 'Funds Released', icon: '✅' },
 ];
 
 export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }: DeliveryTrackingModalProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [orderForConfirmation, setOrderForConfirmation] = useState<Order | null>(null);
+  const [selectedOrderOracleStatus, setSelectedOrderOracleStatus] = useState<EscrowStatusResponse | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   useEffect(() => {
     if (isOpen && walletAddress) {
-      void fetchOrders();
-      // Poll for updates every 10 seconds to see progress faster
-      const interval = setInterval(() => {
-        void fetchOrders();
-      }, 10000);
+      const fetchOrdersSafe = async () => {
+        // Don't fetch if we're currently confirming a transaction
+        if (isConfirming) return;
+        await fetchOrders();
+      };
+      
+      fetchOrdersSafe();
+      // Poll for updates every 30 seconds, but skip if confirming
+      const interval = setInterval(fetchOrdersSafe, 30000);
       return () => clearInterval(interval);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, walletAddress]);
+  }, [isOpen, walletAddress, isConfirming]); // Add isConfirming to pause polling during transaction
+
+  // Fetch full Oracle status when selectedOrder changes
+  useEffect(() => {
+    // Don't fetch if we're currently confirming a transaction
+    if (isConfirming) return;
+    
+    if (selectedOrder?.oracleDbId) {
+      const fetchStatus = async () => {
+        try {
+          const data = await oracleApi.getStatusByDbId(selectedOrder.oracleDbId!);
+          setSelectedOrderOracleStatus(data);
+        } catch (err) {
+          console.error('Failed to fetch Oracle status for selected order:', err);
+        }
+      };
+      fetchStatus();
+    } else {
+      setSelectedOrderOracleStatus(null);
+    }
+  }, [selectedOrder?._id, selectedOrder?.oracleDbId, isConfirming]); // Add isConfirming to pause polling during transaction
+
+  const handleConfirm = async () => {
+    if (!selectedOrderOracleStatus?.txHash) return;
+    setIsConfirming(true);
+    try {
+      // 1. Get the fulfillment secret from the backend
+      const { fulfillment, condition, owner, offerSequence } = await oracleApi.confirmDelivery(selectedOrderOracleStatus.txHash);
+      
+      // Get the connected wallet address from Crossmark SDK
+      const connected = await sdk.methods.isConnected();
+      if (!connected || !sdk.session?.address) {
+        throw new Error('Wallet not connected. Please reconnect your wallet.');
+      }
+      const connectedAddress = sdk.session.address;
+      
+      // Verify owner matches connected wallet (security check)
+      if (owner !== connectedAddress) {
+        throw new Error(`Wallet mismatch. Expected ${owner}, but connected wallet is ${connectedAddress}`);
+      }
+      
+      console.log('Submitting EscrowFinish transaction...', { owner, offerSequence, connectedAddress });
+      
+      // Ensure offerSequence is a number
+      const offerSeqNum = typeof offerSequence === 'string' ? parseInt(offerSequence, 10) : offerSequence;
+      
+      if (isNaN(offerSeqNum)) {
+        throw new Error('Invalid offerSequence: ' + offerSequence);
+      }
+      
+      // Use signAndSubmit (fire-and-forget) instead of signAndSubmitAndWait to prevent hanging
+      // The backend listener will detect the transaction and update MongoDB
+      const result: any = await sdk.methods.signAndSubmit({
+        TransactionType: 'EscrowFinish',
+        Account: connectedAddress, // Use connected wallet address, not owner
+        Owner: owner, // This is the escrow owner (buyer)
+        OfferSequence: offerSeqNum,
+        Fulfillment: fulfillment,
+        // Note: Condition is not needed - it's already stored on-chain from EscrowCreate
+      });
+
+      console.log('Full response object:', JSON.stringify(result, null, 2));
+
+      // Parse immediate response for transaction hash
+      // signAndSubmit may return different structure than signAndSubmitAndWait
+      const response = (typeof result === 'object' && result?.response) ? result.response : result;
+      const resp = response?.data?.resp || response?.resp || response;
+      console.log('Parsed resp:', resp);
+
+      // Check for user cancellation
+      if (!response || !resp) {
+        throw new Error('Transaction cancelled by user - no response from wallet');
+      }
+
+      // Check for error in response
+      if (resp.error || resp.result?.error) {
+        throw new Error(`Transaction error: ${resp.error || resp.result?.error}`);
+      }
+      
+      // Try multiple hash locations
+      const transactionHash = resp?.hash || resp?.result?.hash || response?.data?.hash;
+
+      console.log('Transaction hash:', transactionHash);
+
+      if (!transactionHash) {
+        throw new Error('Transaction failed or was cancelled - no transaction hash returned');
+      }
+
+      // Transaction submitted successfully - now poll backend for status update
+      console.log('Transaction submitted successfully. Hash:', transactionHash);
+      console.log('Polling backend for FINISHED status...');
+      
+      // Poll backend every 2 seconds to detect when listener updates status to FINISHED
+      let attempts = 0;
+      const maxAttempts = 15; // 30 seconds max (15 * 2s)
+
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+        
+        // Refresh orders to get updated status
+        await fetchOrders();
+        
+        // Fetch fresh Oracle status for the selected order
+        if (selectedOrder?.oracleDbId) {
+          const freshStatus = await oracleApi.getStatusByDbId(selectedOrder.oracleDbId);
+          setSelectedOrderOracleStatus(freshStatus);
+          
+          // Check if backend listener detected the EscrowFinish
+          if (freshStatus.currentStatus === 'FINISHED' || freshStatus.journey.currentStatus === 'FINISHED') {
+            console.log('Escrow finished successfully! Backend detected FINISHED status.');
+            return; // Success - exit early
+          }
+        }
+        
+        attempts++;
+      }
+
+      // If polling timeout, refresh status anyway (might still be processing)
+      console.log('Polling timeout reached. Fetching final status...');
+      await fetchOrders();
+      
+      if (selectedOrder?.oracleDbId) {
+        const finalStatus = await oracleApi.getStatusByDbId(selectedOrder.oracleDbId);
+        setSelectedOrderOracleStatus(finalStatus);
+        
+        // Check if it's FINISHED now
+        if (finalStatus.currentStatus === 'FINISHED' || finalStatus.journey.currentStatus === 'FINISHED') {
+          console.log('Escrow finished successfully!');
+        } else {
+          console.log('Escrow status:', finalStatus.currentStatus, '- Transaction may still be processing on ledger.');
+        }
+      }
+    } catch (err: any) {
+      console.error('Confirmation failed:', err);
+      const errorMessage = err.message || err.toString() || 'Unknown error occurred';
+      
+      // Handle user cancellation gracefully
+      if (errorMessage.includes('cancelled') || errorMessage.includes('rejected') || errorMessage.includes('user')) {
+        alert('Transaction was cancelled. Please try again.');
+      } else {
+        alert('Confirmation failed: ' + errorMessage);
+      }
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  const handleRefund = async () => {
+    if (!selectedOrderOracleStatus?.txHash) return;
+    setIsConfirming(true);
+    try {
+      const responseApi = await fetch(`http://localhost:3001/api/escrow/refund/${selectedOrderOracleStatus.txHash}`, {
+        method: "POST",
+      });
+      const { owner, offerSequence } = await responseApi.json();
+
+      const { response } = await sdk.methods.signAndSubmitAndWait({
+        TransactionType: 'EscrowCancel',
+        Owner: owner,
+        OfferSequence: offerSequence,
+      }) as any;
+
+      // Check response structure - Crossmark response can vary
+      const resp: any = (response as any)?.data?.resp || (response as any)?.resp || response;
+      const result = (resp?.result?.meta as any)?.TransactionResult || 
+                     (resp?.meta as any)?.TransactionResult ||
+                     (resp?.result as any)?.meta?.TransactionResult;
+
+      if (result === 'tesSUCCESS' || resp?.hash || resp?.result?.hash) {
+        fetchOrders();
+      } else {
+        throw new Error('Refund failed: ' + (result || 'unknown error'));
+      }
+    } catch (err: any) {
+      alert('Refund failed: ' + err.message);
+    } finally {
+      setIsConfirming(false);
+    }
+  };
 
   const fetchOrders = async () => {
     if (!walletAddress) return;
@@ -48,53 +225,36 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
       const response = await fetch(`/api/orders?walletAddress=${walletAddress}`);
       if (response.ok) {
         const data = await response.json();
-        const ordersWithTracking = data.orders || [];
-        // Update delivery stages automatically
-        const updatedOrders = ordersWithTracking.map((order: Order) => updateDeliveryStage(order));
+        const rawOrders = data.orders || [];
         
-        // Check for auto-confirmation (7 days after delivery)
-        for (const order of updatedOrders) {
-          if (order.currentDeliveryStage === 'delivered' && 
-              !order.deliveryConfirmation?.confirmed && 
-              !order.deliveryConfirmation?.autoConfirmed) {
-            const deliveredStatus = order.deliveryTracking?.find((t: DeliveryStatus) => t.stage === 'delivered');
-            if (deliveredStatus?.timestamp) {
-              const deliveredDate = new Date(deliveredStatus.timestamp);
-              const now = new Date();
-              const diffTime = Math.abs(now.getTime() - deliveredDate.getTime());
-              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        // Fetch Oracle status for each order that has an oracleDbId
+        const updatedOrders = await Promise.all(rawOrders.map(async (order: Order) => {
+          if (order.oracleDbId) {
+            try {
+              const oracleStatus = await oracleApi.getStatusByDbId(order.oracleDbId);
               
-              if (diffDays >= 7) {
-                await handleAutoConfirm(order);
+              // If this is the currently selected order, update the oracle state too
+              if (selectedOrder?._id === order._id) {
+                setSelectedOrderOracleStatus(oracleStatus);
               }
+
+              return {
+                ...order,
+                currentDeliveryStage: oracleStatus.currentStatus,
+                // Update tracking if needed (logic simplified for demo)
+                deliveryTracking: [
+                  ... (order.deliveryTracking || []),
+                  { stage: oracleStatus.currentStatus, timestamp: new Date() }
+                ].filter((v, i, a) => a.findIndex(t => t.stage === v.stage) === i)
+              };
+            } catch (err) {
+              console.error('Failed to fetch Oracle status for order:', order._id);
+              return updateDeliveryStage(order);
             }
           }
-        }
-        
-        // Refresh orders after auto-confirmation
-        if (updatedOrders.some((o: Order) => o.currentDeliveryStage === 'delivered' && !o.deliveryConfirmation?.confirmed)) {
-          const refreshResponse = await fetch(`/api/orders?walletAddress=${walletAddress}`);
-          if (refreshResponse.ok) {
-            const refreshData = await refreshResponse.json();
-            const refreshedOrders = (refreshData.orders || []).map((order: Order) => updateDeliveryStage(order));
-            setOrders(refreshedOrders);
-            
-            // Check for delivered orders that need confirmation
-            const deliveredOrder = refreshedOrders.find((o: Order) => 
-              o.currentDeliveryStage === 'delivered' && 
-              !o.deliveryConfirmation?.confirmed && 
-              !o.deliveryConfirmation?.autoConfirmed &&
-              !showConfirmation
-            );
-            
-            if (deliveredOrder && !orderForConfirmation) {
-              setOrderForConfirmation(deliveredOrder);
-              setShowConfirmation(true);
-            }
-            return;
-          }
-        }
-        
+          return updateDeliveryStage(order);
+        }));
+
         setOrders(updatedOrders);
         
         // Check for delivered orders that need confirmation
@@ -113,13 +273,16 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
         // Auto-select first active order if none selected
         if (!selectedOrder && updatedOrders.length > 0) {
           const activeOrder = updatedOrders.find((o: Order) => 
-            o.currentDeliveryStage !== 'delivered' && o.status !== 'cancelled'
+            o.currentDeliveryStage !== 'DELIVERED' && o.currentDeliveryStage !== 'FINISHED' && o.status !== 'cancelled'
           );
           if (activeOrder) {
             setSelectedOrder(activeOrder);
-          } else if (updatedOrders.length > 0) {
+          } else {
             setSelectedOrder(updatedOrders[0]);
           }
+        } else if (selectedOrder) {
+          const updatedSelected = updatedOrders.find(o => o._id === selectedOrder._id);
+          if (updatedSelected) setSelectedOrder(updatedSelected);
         }
       }
     } catch (error) {
@@ -130,7 +293,7 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
   };
 
   const updateDeliveryStage = (order: Order): Order => {
-    if (!order.createdAt || order.status === 'cancelled') {
+    if (!order.createdAt || order.status === 'cancelled' || order.currentDeliveryStage === 'DELIVERED' || order.currentDeliveryStage === 'FINISHED') {
       return order;
     }
 
@@ -160,17 +323,14 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
     // For orders without full tracking, ensure they show as delivered with realistic timestamps
     const now = new Date();
     const orderDate = new Date(order.createdAt);
-    const hoursSinceOrder = (now.getTime() - orderDate.getTime()) / (1000 * 60 * 60);
+    const elapsedSeconds = (now.getTime() - orderDate.getTime()) / 1000;
 
-    // If order is older than 72 hours, mark as delivered with realistic timestamps
-    if (hoursSinceOrder >= 72 && order.currentDeliveryStage !== 'delivered') {
-      const orderPlacedTime = new Date(orderDate);
-      const orderShippedTime = new Date(orderDate.getTime() + 2 * 60 * 60 * 1000);
-      const onFreightTime = new Date(orderDate.getTime() + 8 * 60 * 60 * 1000);
-      const arrivedSingaporeTime = new Date(orderDate.getTime() + 24 * 60 * 60 * 1000);
-      const atSortingTime = new Date(orderDate.getTime() + 36 * 60 * 60 * 1000);
-      const outForDeliveryTime = new Date(orderDate.getTime() + 48 * 60 * 60 * 1000);
-      const deliveredTime = new Date(orderDate.getTime() + 60 * 60 * 60 * 1000);
+    // Auto-progress stages based on 10-second demo timing
+    let currentStage = order.currentDeliveryStage || 'PENDING';
+    
+    if (elapsedSeconds >= 0) currentStage = 'PENDING';
+    if (elapsedSeconds >= 3) currentStage = 'IN_TRANSIT';
+    if (elapsedSeconds >= 10) currentStage = 'DELIVERED';
 
       const fullTracking = [
         { stage: 'order_placed' as const, timestamp: orderPlacedTime, location: 'Order confirmed' },
@@ -294,7 +454,7 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
     };
   };
 
-  const updateOrderDeliveryStage = async (orderId: string | undefined, stage: DeliveryStage, tracking: Array<{ stage: DeliveryStage; timestamp: Date | string; location?: string }>) => {
+  const updateOrderDeliveryStage = async (orderId: string | undefined, stage: string, tracking: any[]) => {
     if (!orderId) return;
     try {
       await fetch(`/api/orders/${orderId}/tracking`, {
@@ -374,21 +534,22 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
     });
   };
 
-  const getStageIndex = (stage: DeliveryStage | undefined): number => {
+  const getStageIndex = (stage: string | undefined): number => {
     if (!stage) return 0;
     return DELIVERY_STAGES.findIndex(s => s.key === stage);
   };
 
-  const getStageStatus = (order: Order, stageKey: DeliveryStage) => {
+  const getStageStatus = (order: Order, stageKey: string) => {
     const stageIndex = getStageIndex(stageKey);
-    const currentIndex = getStageIndex(order.currentDeliveryStage);
+    const currentIndex = getStageIndex(order.currentDeliveryStage as any);
     
+    if (order.currentDeliveryStage === 'FINISHED') return 'completed';
     if (stageIndex < currentIndex) return 'completed';
     if (stageIndex === currentIndex) return 'current';
     return 'upcoming';
   };
 
-  const getStageTimestamp = (order: Order, stageKey: DeliveryStage) => {
+  const getStageTimestamp = (order: Order, stageKey: string) => {
     const tracking = order.deliveryTracking || [];
     const status = tracking.find(t => t.stage === stageKey);
     return status?.timestamp;
@@ -396,8 +557,8 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
 
   if (!isOpen) return null;
 
-  const activeOrders = orders.filter(o => o.currentDeliveryStage !== 'delivered' && o.status !== 'cancelled');
-  const completedOrders = orders.filter(o => o.currentDeliveryStage === 'delivered' || o.status === 'cancelled');
+  const activeOrders = orders.filter(o => o.currentDeliveryStage !== 'FINISHED' && o.status !== 'cancelled');
+  const completedOrders = orders.filter(o => o.currentDeliveryStage === 'FINISHED' || o.status === 'cancelled');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={onClose}>
@@ -482,7 +643,7 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
                   </div>
 
                   {/* Tracking Timeline */}
-                  <div className="relative">
+                  <div className="relative mb-8">
                     {DELIVERY_STAGES.map((stage, index) => {
                       const status = getStageStatus(selectedOrder, stage.key);
                       const timestamp = getStageTimestamp(selectedOrder, stage.key);
@@ -493,7 +654,7 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
                           {/* Timeline Line */}
                           {!isLast && (
                             <div className="absolute left-4 top-8 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700">
-                              {status === 'completed' && (
+                              {(status === 'completed' || (stage.key === 'DELIVERED' && selectedOrder.currentDeliveryStage === 'FINISHED')) && (
                                 <div className="absolute inset-0 bg-blue-600"></div>
                               )}
                               {status === 'current' && (
@@ -505,14 +666,14 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
                           {/* Stage Icon */}
                           <div
                             className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full text-lg ${
-                              status === 'completed'
+                              status === 'completed' || (stage.key === 'DELIVERED' && selectedOrder.currentDeliveryStage === 'FINISHED')
                                 ? 'bg-blue-600 text-white'
                                 : status === 'current'
                                 ? 'bg-blue-600 text-white ring-4 ring-blue-100 dark:ring-blue-900/30'
                                 : 'bg-gray-200 dark:bg-gray-700 text-gray-400'
                             }`}
                           >
-                            {status === 'completed' ? '✓' : stage.icon}
+                            {(status === 'completed' || (stage.key === 'DELIVERED' && selectedOrder.currentDeliveryStage === 'FINISHED')) ? '✓' : stage.icon}
                           </div>
 
                           {/* Stage Info */}
@@ -522,7 +683,7 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
                                 className={`font-medium ${
                                   status === 'current'
                                     ? 'text-blue-600 dark:text-blue-400'
-                                    : status === 'completed'
+                                    : (status === 'completed' || (stage.key === 'DELIVERED' && selectedOrder.currentDeliveryStage === 'FINISHED'))
                                     ? 'text-gray-900 dark:text-white'
                                     : 'text-gray-400 dark:text-gray-500'
                                 }`}
@@ -550,6 +711,37 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
                       );
                     })}
                   </div>
+
+                  {/* Actions for Selected Order */}
+                  {selectedOrderOracleStatus && (
+                    <div className="mb-8 space-y-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl">
+                      {selectedOrderOracleStatus.isConfirmable && selectedOrderOracleStatus.currentStatus !== 'FINISHED' && (
+                        <button
+                          onClick={handleConfirm}
+                          disabled={isConfirming}
+                          className="w-full rounded-md bg-green-600 px-6 py-3 font-bold text-white shadow-md hover:bg-green-700 disabled:opacity-50"
+                        >
+                          {isConfirming ? 'Opening Wallet...' : '📦 Confirm Delivery & Release Funds'}
+                        </button>
+                      )}
+
+                      {selectedOrderOracleStatus.isExpired && selectedOrderOracleStatus.currentStatus !== 'FINISHED' && selectedOrderOracleStatus.currentStatus !== 'CANCELLED' && (
+                        <button
+                          onClick={handleRefund}
+                          disabled={isConfirming}
+                          className="w-full rounded-md border border-red-600 bg-white px-6 py-2 text-sm font-bold text-red-600 hover:bg-red-50 disabled:opacity-50 dark:bg-gray-800"
+                        >
+                          {isConfirming ? 'Checking...' : '🔄 Request Refund (Escrow Expired)'}
+                        </button>
+                      )}
+
+                      {selectedOrderOracleStatus.currentStatus === 'FINISHED' && (
+                        <div className="text-center font-bold text-green-600 dark:text-green-400">
+                          ✅ Order Completed: Your Order has been delivered
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Order Items Summary */}
                   {selectedOrder.items && selectedOrder.items.length > 0 && (
@@ -588,7 +780,7 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
                               Order #{order._id?.slice(-8).toUpperCase()}
                             </p>
                             <p className="text-sm text-gray-500 dark:text-gray-400">
-                              Delivered on {formatDate(order.deliveryTracking?.find(t => t.stage === 'delivered')?.timestamp || order.createdAt)}
+                              Delivered on {formatDate(order.deliveryTracking?.find(t => t.stage === 'DELIVERED')?.timestamp || order.createdAt)}
                             </p>
                           </div>
                           <span className="text-sm font-medium text-green-600 dark:text-green-400">Delivered</span>

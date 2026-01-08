@@ -12,9 +12,9 @@ export interface JourneyStage {
 /**
  * Calculates the "China -> Singapore" journey stage based on the record's createdAt.
  * 
- * - PENDING: 0-1 min (Processing in China)
- * - IN_TRANSIT: 1-3 mins (Flying to Singapore)
- * - DELIVERED: 3+ mins (Arrived at Destination)
+ * - PENDING: 0-3 seconds (Processing in China)
+ * - IN_TRANSIT: 3-10 seconds (Flying to Singapore)
+ * - DELIVERED: 10+ seconds (Arrived at Destination)
  */
 export const getJourneyStage = (createdAt: Date, status?: EscrowStatus): JourneyStage => {
   if (status === EscrowStatus.PREPARED) {
@@ -30,22 +30,21 @@ export const getJourneyStage = (createdAt: Date, status?: EscrowStatus): Journey
 
   const now = new Date()
   const elapsedSeconds = Math.floor((now.getTime() - createdAt.getTime()) / 1000)
-  const elapsedMinutes = elapsedSeconds / 60
 
-  if (elapsedMinutes < 1) {
+  if (elapsedSeconds < 3) {
     return {
       currentStatus: EscrowStatus.PENDING,
       nextStatus: EscrowStatus.IN_TRANSIT,
-      secondsToNextStage: Math.max(0, 60 - elapsedSeconds),
+      secondsToNextStage: Math.max(0, 3 - elapsedSeconds),
       isConfirmable: false,
       message: "Processing shipment in Shenzhen, China",
       location: "Shenzhen, China"
     }
-  } else if (elapsedMinutes < 3) {
+  } else if (elapsedSeconds < 10) {
     return {
       currentStatus: EscrowStatus.IN_TRANSIT,
       nextStatus: EscrowStatus.DELIVERED,
-      secondsToNextStage: Math.max(0, 180 - elapsedSeconds),
+      secondsToNextStage: Math.max(0, 10 - elapsedSeconds),
       isConfirmable: false,
       message: "Package is on a flight to Singapore",
       location: "In Transit"

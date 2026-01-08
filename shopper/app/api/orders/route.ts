@@ -4,7 +4,7 @@ import clientPromise from "@/lib/mongodb";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { walletAddress, items, total, transactionHash } = body;
+    const { walletAddress, items, total, transactionHash, oracleDbId } = body;
 
     if (!walletAddress || !items || !total) {
       return NextResponse.json(
@@ -42,11 +42,12 @@ export async function POST(request: NextRequest) {
       total,
       status: "pending" as const,
       transactionHash,
+      oracleDbId,
       createdAt: now,
-      currentDeliveryStage: "order_placed" as const,
+      currentDeliveryStage: "PENDING" as const,
       deliveryTracking: [
         {
-          stage: "order_placed" as const,
+          stage: "PENDING" as const,
           timestamp: now,
           location: "Order confirmed",
         },
