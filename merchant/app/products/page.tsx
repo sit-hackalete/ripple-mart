@@ -23,6 +23,8 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
@@ -130,11 +132,16 @@ export default function ProductsPage() {
     setShowAddModal(true);
   };
 
-  const handleDelete = async (productId: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+  const handleDelete = (product: Product) => {
+    setProductToDelete(product);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!productToDelete?._id) return;
 
     try {
-      const response = await fetch(`/api/products/${productId}`, {
+      const response = await fetch(`/api/products/${productToDelete._id}`, {
         method: 'DELETE',
       });
 
@@ -142,6 +149,8 @@ export default function ProductsPage() {
 
       if (response.ok) {
         fetchProducts();
+        setShowDeleteModal(false);
+        setProductToDelete(null);
       } else {
         alert(data.error || 'Failed to delete product. Please try again.');
       }
@@ -436,7 +445,7 @@ export default function ProductsPage() {
                       )}
                     </button>
                     <button
-                      onClick={() => product._id && handleDelete(product._id)}
+                      onClick={() => handleDelete(product)}
                       className="p-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-red-50 hover:border-red-200 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:border-red-900 dark:hover:text-red-400 rounded-lg transition-all"
                       title="Delete product"
                     >
@@ -586,6 +595,73 @@ export default function ProductsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && productToDelete && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+            {/* Icon */}
+            <div className="flex justify-center mb-4">
+              <div className="w-14 h-14 rounded-full bg-red-100 dark:bg-red-950/30 flex items-center justify-center">
+                <AlertCircle className="w-7 h-7 text-red-600 dark:text-red-500" strokeWidth={2} />
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                Delete Product?
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                Are you sure you want to delete <span className="font-semibold text-slate-900 dark:text-white">"{productToDelete.name}"</span>? This action cannot be undone.
+              </p>
+              
+              {/* Product Preview */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 flex items-center gap-3 text-left">
+                {(productToDelete.images && productToDelete.images.length > 0) || productToDelete.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={productToDelete.images?.[0] || productToDelete.imageUrl || ''}
+                    alt={productToDelete.name}
+                    className="w-12 h-12 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                    <ImageIcon className="w-6 h-6 text-slate-400" strokeWidth={2} />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
+                    {productToDelete.name}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {productToDelete.price.toFixed(2)} RLUSD • {productToDelete.stock} in stock
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setProductToDelete(null);
+                }}
+                className="flex-1 px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all font-medium text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all font-medium text-sm shadow-sm"
+              >
+                Delete Product
+              </button>
+            </div>
           </div>
         </div>
       )}

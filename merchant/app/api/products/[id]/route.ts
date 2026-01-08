@@ -95,20 +95,22 @@ export async function DELETE(
 
     const productsCollection = db.collection('products');
 
-    // Soft delete by setting isActive to false
-    const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id) },
-      { $set: { isActive: false, updatedAt: new Date() } }
-    );
+    // Hard delete - permanently remove from MongoDB
+    const result = await productsCollection.deleteOne({
+      _id: new ObjectId(id)
+    });
 
-    if (result.matchedCount === 0) {
+    if (result.deletedCount === 0) {
       return NextResponse.json(
         { error: 'Product not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Product permanently deleted from database' 
+    });
   } catch (error) {
     console.error('Error deleting product:', error);
     return NextResponse.json(
