@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Order } from '@/lib/models';
 
 interface DeliveryConfirmationModalProps {
@@ -21,6 +21,22 @@ export default function DeliveryConfirmationModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [daysSinceDelivery, setDaysSinceDelivery] = useState(0);
 
+  const handleAutoConfirm = useCallback(async () => {
+    if (!order._id) return;
+    setIsSubmitting(true);
+    try {
+      await onConfirm(order._id, true);
+      // Show feedback form after auto-confirmation
+      setTimeout(() => {
+        onShowFeedback(order);
+      }, 1000);
+    } catch (error) {
+      console.error('Error auto-confirming delivery:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [order, onConfirm, onShowFeedback]);
+
   useEffect(() => {
     if (isOpen && order.deliveryTracking) {
       const deliveredStatus = order.deliveryTracking.find(t => t.stage === 'delivered');
@@ -37,23 +53,7 @@ export default function DeliveryConfirmationModal({
         }
       }
     }
-  }, [isOpen, order]);
-
-  const handleAutoConfirm = async () => {
-    if (!order._id) return;
-    setIsSubmitting(true);
-    try {
-      await onConfirm(order._id, true);
-      // Show feedback form after auto-confirmation
-      setTimeout(() => {
-        onShowFeedback(order);
-      }, 1000);
-    } catch (error) {
-      console.error('Error auto-confirming delivery:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  }, [isOpen, order, handleAutoConfirm]);
 
   const handleConfirm = async (confirmed: boolean) => {
     if (!order._id) return;

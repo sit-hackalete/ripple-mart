@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useCart } from '@/contexts/CartContext';
-import { useWallet } from '@/lib/wallet-context';
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import Link from 'next/link';
-import sdk from '@crossmarkio/sdk';
-import { oracleApi } from '@/lib/oracle';
-import { isoTimeToRippleTime } from 'xrpl';
+import { useState, useEffect } from "react";
+import { useCart } from "@/contexts/CartContext";
+import { useWallet } from "@/lib/wallet-context";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
+import sdk from "@crossmarkio/sdk";
+import { oracleApi } from "@/lib/oracle";
+import { isoTimeToRippleTime } from "xrpl";
 
 export default function CheckoutPage() {
   const { items, getTotalPrice, clearCart } = useCart();
@@ -20,7 +20,7 @@ export default function CheckoutPage() {
   // Use useEffect for the empty cart redirection to avoid the "setState in render" warning
   useEffect(() => {
     if (isConnected && items.length === 0 && !isProcessing) {
-      router.push('/cart');
+      router.push("/cart");
     }
   }, [items.length, isConnected, router, isProcessing]);
 
@@ -53,42 +53,53 @@ export default function CheckoutPage() {
 
     try {
       if (!walletAddress) {
-        throw new Error('Wallet not connected');
+        throw new Error("Wallet not connected");
       }
 
       const total = getTotalPrice();
-      
+
       // --- GET MERCHANT ADDRESS FROM CART ---
       // We must use the real address from the product in MongoDB
       const merchantAddress = items[0]?.product.merchantWalletAddress;
-      
-      console.log('DEBUG: Merchant Address from Cart:', merchantAddress);
 
-      if (!merchantAddress || merchantAddress.startsWith('rX') || merchantAddress.length < 25) {
-        throw new Error(`Invalid merchant address found: "${merchantAddress}". Please ensure the product in your database has a valid XRPL wallet address.`);
+      console.log("DEBUG: Merchant Address from Cart:", merchantAddress);
+
+      if (
+        !merchantAddress ||
+        merchantAddress.startsWith("rX") ||
+        merchantAddress.length < 25
+      ) {
+        throw new Error(
+          `Invalid merchant address found: "${merchantAddress}". Please ensure the product in your database has a valid XRPL wallet address.`
+        );
       }
-      
+
       // Calculate CancelAfter (e.g., 5 minutes from now for testing)
       const cancelAfterDate = new Date();
       cancelAfterDate.setMinutes(cancelAfterDate.getMinutes() + 5);
-      const cancelAfterRipple = isoTimeToRippleTime(cancelAfterDate.toISOString());
+      const cancelAfterRipple = isoTimeToRippleTime(
+        cancelAfterDate.toISOString()
+      );
 
-      // --- STEP 1: PREPARE WITH ORACLE (Optional) ---
-      let prepared = null;
-      let transactionHash: string | undefined;
-      
-      try {
-        const amountInDrops = Math.floor(total * 1000000).toString();
-        prepared = await oracleApi.prepare({
-          buyerAddress: walletAddress,
-          sellerAddress: merchantAddress,
-          amount: amountInDrops,
-          cancelAfter: cancelAfterRipple
-        });
+      // --- STEP 1: PREPARE ESCROW WITH ORACLE ---
+      // This creates the escrow document in the oracle backend MongoDB
+      const amountInDrops = Math.floor(total * 1000000).toString();
 
-      // --- STEP 2: CREATE ESCROW ON LEDGER ---
+      const prepared = await oracleApi.prepare({
+        buyerAddress: walletAddress,
+        sellerAddress: merchantAddress,
+        amount: amountInDrops,
+        cancelAfter: cancelAfterRipple,
+      });
+
+      if (!prepared || !prepared.condition || !prepared.dbId) {
+        throw new Error("Failed to prepare escrow with Oracle backend");
+      }
+
+      // --- STEP 2: CREATE ESCROW ON XRPL LEDGER ---
+      // The oracle backend will detect this transaction and update the escrow document with txHash
       const { response } = await sdk.methods.signAndSubmitAndWait({
-        TransactionType: 'EscrowCreate',
+        TransactionType: "EscrowCreate",
         Account: walletAddress,
         Destination: merchantAddress,
         Amount: amountInDrops,
@@ -96,64 +107,95 @@ export default function CheckoutPage() {
         CancelAfter: cancelAfterRipple,
       });
 
-        // Crossmark response structure check
-        type RespType = { hash?: string; result?: { hash?: string } };
-        const resp = response.data.resp as RespType;
-        transactionHash = resp?.hash || resp?.result?.hash;
-      } catch (oracleError) {
-        // If oracle is not available, use simple payment instead
-        console.warn('Oracle not available, using direct payment:', oracleError);
-        
-        const amountInDrops = Math.floor(total * 1000000).toString();
-        
-        // Use simple Payment transaction instead of Escrow
-        const { response } = await sdk.methods.signAndSubmitAndWait({
-          TransactionType: 'Payment',
-          Account: walletAddress,
-          Destination: merchantAddress,
-          Amount: amountInDrops,
-        });
-
-        // Crossmark response structure check
-        type RespType = { hash?: string; result?: { hash?: string } };
-        const resp = response.data.resp as RespType;
-        transactionHash = resp?.hash || resp?.result?.hash;
-      }
+      // Parse transaction hash from Crossmark response
+      type RespType = { hash?: string; result?: { hash?: string } };
+      const resp = response.data.resp as RespType;
+      const transactionHash = resp?.hash || resp?.result?.hash;
 
       if (!transactionHash) {
-        throw new Error('Transaction failed or was cancelled');
+        throw new Error(
+          "Transaction failed or was cancelled - no transaction hash returned"
+        );
       }
 
+      // The oracle backend listener should automatically detect the EscrowCreate transaction
+      // and update the escrow document with the txHash. We'll use the dbId to link the order.
+
       // Save order to your local shopper database
-      const orderResponse = await fetch('/api/orders', {
-        method: 'POST',
+      // The oracleDbId links this order to the escrow document in the oracle backend
+      const orderResponse = await fetch("/api/orders", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           walletAddress,
           items,
           total: getTotalPrice(),
           transactionHash,
-          oracleDbId: prepared?.dbId // Store this if oracle was used
+          oracleDbId: prepared.dbId, // Always store the oracle DB ID (escrow is always used now)
         }),
       });
 
-      if (orderResponse.ok) {
-        clearCart();
-        // Pass the dbId to the success page if oracle was used, otherwise just go to success
-        if (prepared?.dbId) {
-          router.push(`/checkout/success?id=${prepared.dbId}`);
-        } else {
-          router.push('/checkout/success');
-        }
-      } else {
-        throw new Error('Failed to create local order');
+      if (!orderResponse.ok) {
+        throw new Error("Failed to create local order");
       }
+
+      // Create Sale records for each item in the cart
+      // Each product should have a merchantWalletAddress
+      const salePromises = items.map(async (item) => {
+        const itemMerchantAddress =
+          item.product.merchantWalletAddress || merchantAddress;
+
+        if (!itemMerchantAddress) {
+          console.warn(
+            `Product ${item.product._id} missing merchantWalletAddress, skipping sale record`
+          );
+          return null;
+        }
+
+        try {
+          const saleResponse = await fetch("/api/sales", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              merchantWalletAddress: itemMerchantAddress,
+              productId: item.product._id || "",
+              productName: item.product.name,
+              quantity: item.quantity,
+              pricePerUnit: item.product.price,
+              totalAmount: item.product.price * item.quantity,
+              customerWalletAddress: walletAddress,
+              transactionHash,
+            }),
+          });
+
+          if (!saleResponse.ok) {
+            console.error(
+              `Failed to create sale for product ${item.product._id}`
+            );
+          }
+        } catch (saleError) {
+          console.error(
+            `Error creating sale for product ${item.product._id}:`,
+            saleError
+          );
+          // Don't throw - continue with other sales
+        }
+      });
+
+      // Wait for all sales to be created (but don't fail if some fail)
+      await Promise.allSettled(salePromises);
+
+      clearCart();
+      // Pass the dbId to the success page for tracking
+      router.push(`/checkout/success?id=${prepared.dbId}`);
     } catch (err: unknown) {
-      console.error('Checkout error:', err);
+      console.error("Checkout error:", err);
       const error = err as Error;
-      setError(error.message || 'Checkout failed. Please try again.');
+      setError(error.message || "Checkout failed. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -180,10 +222,13 @@ export default function CheckoutPage() {
                       XRP Payment
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Wallet: {walletAddress?.slice(0, 10)}...{walletAddress?.slice(-8)}
+                      Wallet: {walletAddress?.slice(0, 10)}...
+                      {walletAddress?.slice(-8)}
                     </p>
                   </div>
-                  <span className="text-sm font-medium text-blue-600">Connected</span>
+                  <span className="text-sm font-medium text-blue-600">
+                    Connected
+                  </span>
                 </div>
               </div>
             </div>
@@ -202,7 +247,7 @@ export default function CheckoutPage() {
                 >
                   <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-gray-100 dark:bg-gray-800">
                     <Image
-                      src={item.product.image || '/placeholder-product.jpg'}
+                      src={item.product.image || "/placeholder-product.jpg"}
                       alt={item.product.name}
                       width={64}
                       height={64}
@@ -261,7 +306,7 @@ export default function CheckoutPage() {
               disabled={isProcessing}
               className="w-full rounded-md bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isProcessing ? 'Processing...' : 'Complete Purchase'}
+              {isProcessing ? "Processing..." : "Complete Purchase"}
             </button>
 
             <Link
@@ -276,4 +321,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-
