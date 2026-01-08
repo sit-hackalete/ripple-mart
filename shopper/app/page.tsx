@@ -1,15 +1,24 @@
-import { Suspense } from 'react';
-import ProductCard from '@/components/ProductCard';
-import UserWelcome from '@/components/UserWelcome';
-import { Product } from '@/types';
-import clientPromise from '@/lib/mongodb';
+import { Suspense } from "react";
+import ProductCard from "@/components/ProductCard";
+import UserWelcome from "@/components/UserWelcome";
+import { Product } from "@/types";
+import clientPromise, { isMongoConnected } from "@/lib/mongodb";
 
 async function getProducts(): Promise<Product[]> {
+  // If MongoDB is not connected, return empty array
+  if (!isMongoConnected() || !clientPromise) {
+    return [];
+  }
+
   try {
     const client = await clientPromise;
-    const db = client.db('ripple_mart');
-    const products = await db.collection('products').find({}).toArray();
-    
+    if (!client) {
+      return [];
+    }
+
+    const db = client.db("ripple_mart");
+    const products = await db.collection("products").find({}).toArray();
+
     return products.map((product) => ({
       _id: product._id.toString(),
       name: product.name,
@@ -23,7 +32,7 @@ async function getProducts(): Promise<Product[]> {
       updatedAt: product.updatedAt,
     })) as Product[];
   } catch (error) {
-    console.error('Error fetching products:', error);
+    console.error("Error fetching products:", error);
     return [];
   }
 }

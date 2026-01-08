@@ -68,7 +68,8 @@ export default function CheckoutPage() {
       });
 
       // Get transaction hash from response
-      const transactionHash = response.data.resp.hash || response.data.resp.result?.hash;
+      // Crossmark response structure: response.data.resp.result.hash
+      const transactionHash = (response.data.resp as any)?.hash || (response.data.resp as any)?.result?.hash;
 
       if (!transactionHash) {
         throw new Error('Transaction failed or was cancelled');
