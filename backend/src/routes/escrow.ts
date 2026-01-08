@@ -39,6 +39,14 @@ router.post("/prepare", async (req, res) => {
 
     await newEscrow.save()
 
+    // Log preparation
+    await Log.create({
+      txHash: "PREPARE_" + newEscrow._id,
+      engineResult: "LOCAL_SUCCESS",
+      engineMessage: "Escrow prepared and secret stored",
+      actionType: ActionType.CREATE
+    })
+
     res.status(201).json({
       message: "Escrow prepared",
       dbId: newEscrow._id,

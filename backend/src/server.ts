@@ -29,7 +29,14 @@ const start = async () => {
     
     // Start workers
     startAutoReleaseWorker()
-    startLedgerListener([WALLET_1.address, WALLET_2.address])
+    
+    // Dynamically fetch all merchant addresses from the products collection
+    const db = mongoose.connection.db;
+    const products = await db!.collection('products').find({}).toArray();
+    const merchantAddresses = Array.from(new Set(products.map(p => p.merchantWalletAddress).filter(Boolean)));
+    
+    console.log(`[Server] Watching ${merchantAddresses.length} merchant addresses for new escrows.`);
+    startLedgerListener(merchantAddresses as string[])
     
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`)
