@@ -13,21 +13,27 @@ async function getProducts(): Promise<Product[]> {
       isActive: { $ne: false } 
     }).toArray();
 
-    return products.map((product) => ({
-      _id: product._id.toString(),
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      image: product.image || product.imageUrl,
-      imageUrl: product.imageUrl || product.image,
-      images: product.images,
-      category: product.category,
-      stock: product.stock,
-      isActive: product.isActive !== false,
-      merchantWalletAddress: product.merchantWalletAddress,
-      createdAt: product.createdAt,
-      updatedAt: product.updatedAt,
-    })) as Product[];
+    return products.map((product) => {
+      // Prioritize the primary image field - never use images[0] as fallback
+      // The image field should only come from product.image or product.imageUrl
+      const primaryImage = product.image || product.imageUrl || '/placeholder-product.jpg';
+      
+      return {
+        _id: product._id.toString(),
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        image: primaryImage, // Always use the primary image field, never images[0]
+        imageUrl: product.imageUrl || product.image || primaryImage,
+        images: product.images, // Keep images array separate - it's for additional images only
+        category: product.category,
+        stock: product.stock,
+        isActive: product.isActive !== false,
+        merchantWalletAddress: product.merchantWalletAddress,
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt,
+      };
+    }) as Product[];
   } catch (error) {
     console.error("Error fetching products:", error);
     return [];

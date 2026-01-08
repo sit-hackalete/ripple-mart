@@ -26,14 +26,17 @@ async function getProduct(id: string): Promise<Product | null> {
     }
 
     // Map MongoDB fields to Product interface
+    // Prioritize the primary image field - never use images[0] as fallback
+    const primaryImage = product.image || product.imageUrl || '/placeholder-product.jpg';
+    
     return {
       _id: product._id.toString(),
       name: product.name,
       description: product.description,
       price: product.price,
-      image: product.image || product.imageUrl || '/placeholder-product.jpg',
-      imageUrl: product.imageUrl || product.image,
-      images: product.images || (product.imageUrl ? [product.imageUrl] : [product.image || '/placeholder-product.jpg']),
+      image: primaryImage, // Always use the primary image field, never images[0]
+      imageUrl: product.imageUrl || product.image || primaryImage,
+      images: product.images || [], // Keep images array separate - it's for additional images only
       category: product.category,
       stock: product.stock,
       isActive: product.isActive !== false,

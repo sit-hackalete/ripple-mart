@@ -38,10 +38,14 @@ function TrackingContent() {
   }, [dbId, confirming]); // Add confirming to dependencies to pause polling during transaction
 
   const handleConfirm = async () => {
-    if (!status?.txHash) return;
+    // Use the 1-1 relationship: Order.oracleDbId (from URL dbId param) -> EscrowOracle._id
+    if (!dbId) {
+      throw new Error("No escrow oracle document ID found");
+    }
     setConfirming(true);
     try {
-      const { fulfillment, condition, owner, offerSequence } = await oracleApi.confirmDelivery(status.txHash);
+      // Fetch fulfillment directly from EscrowOracle document using oracleDbId (dbId from URL)
+      const { fulfillment, owner, offerSequence } = await oracleApi.getFulfillmentByDbId(dbId);
       
       // Get the connected wallet address from Crossmark SDK
       const connected = await sdk.methods.isConnected();
@@ -55,7 +59,12 @@ function TrackingContent() {
         throw new Error(`Wallet mismatch. Expected ${owner}, but connected wallet is ${connectedAddress}`);
       }
       
-      console.log('Submitting EscrowFinish transaction...', { owner, offerSequence, connectedAddress });
+      console.log('Submitting EscrowFinish transaction...', { 
+        owner, 
+        offerSequence, 
+        connectedAddress,
+        fulfillmentLength: fulfillment?.length || 0
+      });
       
       // Ensure offerSequence is a number
       const offerSeqNum = typeof offerSequence === 'string' ? parseInt(offerSequence, 10) : offerSequence;
@@ -63,24 +72,39 @@ function TrackingContent() {
       if (isNaN(offerSeqNum)) {
         throw new Error('Invalid offerSequence: ' + offerSequence);
       }
+
+      if (!fulfillment) {
+        throw new Error('Fulfillment secret is missing from backend response');
+      }
       
-      // Use signAndSubmit (fire-and-forget) instead of signAndSubmitAndWait to prevent hanging
-      // The backend listener will detect the transaction and update MongoDB
-      const result: any = await sdk.methods.signAndSubmit({
-        TransactionType: 'EscrowFinish',
-        Account: connectedAddress, // Use connected wallet address, not owner
-        Owner: owner, // This is the escrow owner (buyer)
+      // Prepare EscrowFinish transaction
+      const escrowFinishTx = {
+        TransactionType: 'EscrowFinish' as const,
+        Account: connectedAddress, // Account submitting the transaction (buyer)
+        Owner: owner, // Account that created the escrow (buyer)
         OfferSequence: offerSeqNum,
         Fulfillment: fulfillment,
         // Note: Condition is not needed - it's already stored on-chain from EscrowCreate
+      };
+
+      console.log('EscrowFinish transaction payload:', {
+        ...escrowFinishTx,
+        Fulfillment: fulfillment.substring(0, 20) + '...' // Don't log full secret
       });
+      
+      // Use signAndSubmit (fire-and-forget) instead of signAndSubmitAndWait to prevent hanging
+      // The backend listener will detect the transaction and update MongoDB
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result: any = await sdk.methods.signAndSubmit(escrowFinishTx);
 
       console.log('Full response object:', JSON.stringify(result, null, 2));
 
       // Parse immediate response for transaction hash
       // signAndSubmit may return different structure than signAndSubmitAndWait
-      const response = (typeof result === 'object' && result?.response) ? result.response : result;
-      const resp = response?.data?.resp || response?.resp || response;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response: any = (typeof result === 'object' && result?.response) ? result.response : result;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const resp: any = response?.data?.resp || response?.resp || response;
       console.log('Parsed resp:', resp);
 
       // Check for user cancellation
@@ -136,9 +160,9 @@ function TrackingContent() {
       } else {
         console.log('Escrow status:', finalData.currentStatus, '- Transaction may still be processing on ledger.');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Confirmation failed:', err);
-      const errorMessage = err.message || err.toString() || 'Unknown error occurred';
+      const errorMessage = err instanceof Error ? err.message : String(err) || 'Unknown error occurred';
       
       // Handle user cancellation gracefully
       if (errorMessage.includes('cancelled') || errorMessage.includes('rejected') || errorMessage.includes('user')) {
@@ -160,7 +184,7 @@ function TrackingContent() {
       });
       const { owner, offerSequence } = await responseApi.json();
 
-      const { response } = await sdk.methods.signAndSubmitAndWait({
+      await sdk.methods.signAndSubmitAndWait({
         TransactionType: 'EscrowCancel',
         Owner: owner,
         OfferSequence: offerSequence,
@@ -168,8 +192,9 @@ function TrackingContent() {
 
       const data = await oracleApi.getStatusByDbId(dbId!);
       setStatus(data);
-    } catch (err: any) {
-      alert('Refund failed: ' + err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      alert('Refund failed: ' + errorMessage);
     } finally {
       setConfirming(false);
     }
@@ -245,7 +270,7 @@ function TrackingContent() {
 
             <div className="rounded-md bg-gray-50 p-4 dark:bg-gray-800 text-center">
               <p className="text-sm font-medium text-gray-900 dark:text-white">
-                "{status.journey.message}"
+                &ldquo;{status.journey.message}&rdquo;
               </p>
               {status.secondsToNextStage > 0 && (
                 <p className="mt-2 text-xs text-orange-600 animate-pulse font-mono">

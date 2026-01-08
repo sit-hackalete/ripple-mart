@@ -28,6 +28,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   // Load cart from localStorage after mount to prevent hydration issues
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     const savedCart = localStorage.getItem("cart");
     if (savedCart) {

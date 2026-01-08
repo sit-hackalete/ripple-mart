@@ -22,7 +22,13 @@ export async function PATCH(
       const client = await clientPromise();
       const db = client.db("ripple_mart");
 
-      const confirmationData: any = {
+      const confirmationData: {
+        confirmed: boolean;
+        confirmedAt: Date;
+        autoConfirmed?: boolean;
+        autoConfirmedAt?: Date;
+        notDelivered?: boolean;
+      } = {
         confirmed,
         confirmedAt: new Date(),
       };
