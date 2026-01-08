@@ -6,17 +6,21 @@ import React, {
   useState,
   useEffect,
   ReactNode,
+  useCallback,
 } from "react";
 import sdk from "@crossmarkio/sdk";
+import { Client } from "xrpl";
 
 interface WalletContextType {
   isConnected: boolean;
   walletAddress: string | null;
   network: string | null;
   isInstalled: boolean;
+  balance: string | null;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   checkConnection: () => Promise<void>;
+  refreshBalance: () => Promise<void>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -45,6 +49,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const [network, setNetwork] = useState<string | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [balance, setBalance] = useState<string | null>(null);
 
   // Check if Crossmark is installed
   const checkInstalled = async () => {
@@ -58,6 +63,44 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Fetch XRP balance from XRP Ledger testnet
+  const refreshBalance = useCallback(
+    async (address?: string | null) => {
+      const addressToUse = address ?? walletAddress;
+      if (!addressToUse || typeof window === "undefined") {
+        setBalance(null);
+        return;
+      }
+
+      try {
+        // Connect to Ripple Testnet
+        const client = new Client("wss://s.altnet.rippletest.net:51233");
+        await client.connect();
+
+        try {
+          const accountInfo = await client.request({
+            command: "account_info",
+            account: addressToUse,
+            ledger_index: "validated",
+          });
+
+          // Balance is in drops, convert to XRP (1 XRP = 1,000,000 drops)
+          const balanceInDrops = accountInfo.result.account_data.Balance;
+          const balanceInXRP = (parseInt(balanceInDrops) / 1_000_000).toFixed(
+            6
+          );
+          setBalance(balanceInXRP);
+        } finally {
+          await client.disconnect();
+        }
+      } catch (error) {
+        console.error("Error fetching balance:", error);
+        setBalance(null);
+      }
+    },
+    [walletAddress]
+  );
+
   // Check connection status and update state
   const checkConnection = async () => {
     if (typeof window === "undefined") return;
@@ -67,6 +110,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setIsConnected(false);
       setWalletAddress(null);
       setNetwork(null);
+      setBalance(null);
       return;
     }
 
@@ -85,16 +129,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
           // Update localStorage
           localStorage.setItem("walletAddress", address);
+
+          // Fetch balance with the new address
+          void refreshBalance(address);
         } else {
           setIsConnected(false);
           setWalletAddress(null);
           setNetwork(null);
+          setBalance(null);
           localStorage.removeItem("walletAddress");
         }
       } else {
         setIsConnected(false);
         setWalletAddress(null);
         setNetwork(null);
+        setBalance(null);
         localStorage.removeItem("walletAddress");
       }
     } catch (error) {
@@ -102,6 +151,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setIsConnected(false);
       setWalletAddress(null);
       setNetwork(null);
+      setBalance(null);
       localStorage.removeItem("walletAddress");
     }
   };
@@ -135,6 +185,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
         // Update localStorage
         localStorage.setItem("walletAddress", address);
+
+        // Fetch balance with the new address
+        void refreshBalance(address);
 
         // Create or fetch shopper in database (onboarding)
         try {
@@ -172,6 +225,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setIsConnected(false);
     setWalletAddress(null);
     setNetwork(null);
+    setBalance(null);
     localStorage.removeItem("walletAddress");
   };
 
@@ -182,6 +236,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setIsConnected(false);
       setWalletAddress(null);
       setNetwork(null);
+      setBalance(null);
       localStorage.removeItem("walletAddress");
     };
 
@@ -198,7 +253,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     const handleUserChange = () => {
       // Re-check connection when user changes
-      checkConnection();
+      void checkConnection();
     };
 
     // Register event listeners
@@ -225,6 +280,23 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Refresh balance when wallet address changes
+  useEffect(() => {
+    if (isConnected && walletAddress) {
+      void refreshBalance();
+      // Refresh balance periodically (every 30 seconds)
+      const balanceInterval = setInterval(() => {
+        void refreshBalance();
+      }, 30000);
+
+      return () => {
+        clearInterval(balanceInterval);
+      };
+    } else {
+      setBalance(null);
+    }
+  }, [isConnected, walletAddress, refreshBalance]);
+
   return (
     <WalletContext.Provider
       value={{
@@ -232,9 +304,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         walletAddress,
         network,
         isInstalled,
+        balance,
         connect,
         disconnect,
         checkConnection,
+        refreshBalance,
       }}
     >
       {children}

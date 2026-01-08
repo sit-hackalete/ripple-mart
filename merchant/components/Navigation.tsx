@@ -2,13 +2,48 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import WalletButton from './WalletButton';
 import { LayoutDashboard, Package, Zap } from 'lucide-react';
+import { useWallet } from '@/lib/wallet-context';
 
 export default function Navigation() {
   const pathname = usePathname();
+  const { isConnected, walletAddress, balance } = useWallet();
+  const [profit, setProfit] = useState<number | null>(null);
 
   const isActive = (path: string) => pathname === path;
+
+  // Fetch profit from merchant stats
+  useEffect(() => {
+    if (isConnected && walletAddress) {
+      const fetchProfit = async () => {
+        try {
+          const response = await fetch(
+            `/api/merchant/stats?walletAddress=${walletAddress}`
+          );
+          const data = await response.json();
+          if (response.ok && !data.error && data.profit !== undefined) {
+            // Convert profit from RLUSD to XRP (assuming 1:1 for now, adjust if needed)
+            setProfit(data.profit);
+          } else {
+            setProfit(null);
+          }
+        } catch (error) {
+          console.error('Error fetching profit:', error);
+          setProfit(null);
+        }
+      };
+      void fetchProfit();
+      // Refresh profit every 30 seconds
+      const interval = setInterval(() => {
+        void fetchProfit();
+      }, 30000);
+      return () => clearInterval(interval);
+    } else {
+      setProfit(null);
+    }
+  }, [isConnected, walletAddress]);
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-black/80 backdrop-blur-xl">
@@ -55,6 +90,25 @@ export default function Navigation() {
               <span>Products</span>
             </Link>
           </div>
+
+          {/* Profit & Balance Display */}
+          {isConnected && walletAddress && (profit !== null || balance !== null) && (
+            <div className="flex items-center gap-3 mr-4 px-4 py-2 bg-slate-50 dark:bg-slate-900 rounded-full border border-slate-200 dark:border-slate-800">
+              {profit !== null && (
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Profit: <span className="text-green-600 dark:text-green-400 font-semibold">{profit.toFixed(2)} XRP</span>
+                </span>
+              )}
+              {profit !== null && balance !== null && (
+                <span className="text-slate-300 dark:text-slate-600">|</span>
+              )}
+              {balance !== null && (
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Balance: <span className="text-blue-600 dark:text-blue-400 font-semibold">{balance} XRP</span>
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Wallet Button */}
           <WalletButton />

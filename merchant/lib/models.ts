@@ -12,9 +12,10 @@ export interface Product {
   merchantWalletAddress: string;
   name: string;
   description: string;
-  price: number; // Price in RLUSD
+  price: number;
+  currency: string; // Default to XRP
   images?: string[]; // Array of image URLs from Vercel Blob
-  imageUrl?: string; // Legacy field for backward compatibility
+  imageUrl?: string; // Legacy field for backward compatibility 
   category?: string;
   stock: number;
   isActive: boolean;
@@ -28,9 +29,13 @@ export interface Sale {
   productId: string;
   productName: string;
   quantity: number;
-  totalAmount: number; // Amount in RLUSD
+  pricePerUnit: number; // Price per unit at time of sale (in XRP)
+  totalAmount: number; // Total amount = quantity * pricePerUnit (in XRP)
+  currency: string; // Always "XRP"
   customerWalletAddress: string;
-  transactionHash: string;
+  transactionHash: string; // XRPL transaction hash
   status: "pending" | "completed" | "failed";
   createdAt?: Date;
+  completedAt?: Date; // When transaction was completed
+  failedAt?: Date; // When transaction failed (if applicable)
 }
