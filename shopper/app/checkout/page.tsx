@@ -67,34 +67,57 @@ export default function CheckoutPage() {
       cancelAfterDate.setMinutes(cancelAfterDate.getMinutes() + 5);
       const cancelAfterRipple = isoTimeToRippleTime(cancelAfterDate.toISOString());
 
-      // --- STEP 1: PREPARE WITH ORACLE ---
-      const amountInDrops = Math.floor(total * 1000000).toString();
-      const prepared = await oracleApi.prepare({
-        buyerAddress: walletAddress,
-        sellerAddress: merchantAddress,
-        amount: amountInDrops,
-        cancelAfter: cancelAfterRipple
-      });
+      // --- STEP 1: PREPARE WITH ORACLE (Optional) ---
+      let prepared = null;
+      let transactionHash: string | undefined;
+      
+      try {
+        const amountInDrops = Math.floor(total * 1000000).toString();
+        prepared = await oracleApi.prepare({
+          buyerAddress: walletAddress,
+          sellerAddress: merchantAddress,
+          amount: amountInDrops,
+          cancelAfter: cancelAfterRipple
+        });
 
-      // --- STEP 2: CREATE ESCROW ON LEDGER ---
-      const { response } = await sdk.methods.signAndSubmitAndWait({
-        TransactionType: 'EscrowCreate',
-        Destination: merchantAddress,
-        Amount: amountInDrops,
-        Condition: prepared.condition,
-        CancelAfter: cancelAfterRipple,
-      });
+        // --- STEP 2: CREATE ESCROW ON LEDGER ---
+        const { response } = await sdk.methods.signAndSubmitAndWait({
+          TransactionType: 'EscrowCreate',
+          Destination: merchantAddress,
+          Amount: amountInDrops,
+          Condition: prepared.condition,
+          CancelAfter: cancelAfterRipple,
+        });
 
-      // Crossmark response structure check
-      type RespType = { hash?: string; result?: { hash?: string } };
-      const resp = response.data.resp as RespType;
-      const transactionHash = resp?.hash || resp?.result?.hash;
+        // Crossmark response structure check
+        type RespType = { hash?: string; result?: { hash?: string } };
+        const resp = response.data.resp as RespType;
+        transactionHash = resp?.hash || resp?.result?.hash;
+      } catch (oracleError) {
+        // If oracle is not available, use simple payment instead
+        console.warn('Oracle not available, using direct payment:', oracleError);
+        
+        const amountInDrops = Math.floor(total * 1000000).toString();
+        
+        // Use simple Payment transaction instead of Escrow
+        const { response } = await sdk.methods.signAndSubmitAndWait({
+          TransactionType: 'Payment',
+          Account: walletAddress,
+          Destination: merchantAddress,
+          Amount: amountInDrops,
+        });
+
+        // Crossmark response structure check
+        type RespType = { hash?: string; result?: { hash?: string } };
+        const resp = response.data.resp as RespType;
+        transactionHash = resp?.hash || resp?.result?.hash;
+      }
 
       if (!transactionHash) {
         throw new Error('Transaction failed or was cancelled');
       }
 
-      // Save order to your local shopper database (optional but good for history)
+      // Save order to your local shopper database
       const orderResponse = await fetch('/api/orders', {
         method: 'POST',
         headers: {
@@ -105,14 +128,18 @@ export default function CheckoutPage() {
           items,
           total: getTotalPrice(),
           transactionHash,
-          oracleDbId: prepared.dbId // Store this so we can track the simulation
+          oracleDbId: prepared?.dbId // Store this if oracle was used
         }),
       });
 
       if (orderResponse.ok) {
         clearCart();
-        // Pass the dbId to the success page for tracking
-        router.push(`/checkout/success?id=${prepared.dbId}`);
+        // Pass the dbId to the success page if oracle was used, otherwise just go to success
+        if (prepared?.dbId) {
+          router.push(`/checkout/success?id=${prepared.dbId}`);
+        } else {
+          router.push('/checkout/success');
+        }
       } else {
         throw new Error('Failed to create local order');
       }
@@ -143,7 +170,7 @@ export default function CheckoutPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium text-gray-900 dark:text-white">
-                      RLUSD Payment
+                      XRP Payment
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       Wallet: {walletAddress?.slice(0, 10)}...{walletAddress?.slice(-8)}
@@ -180,11 +207,11 @@ export default function CheckoutPage() {
                       {item.product.name}
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Quantity: {item.quantity} × {item.product.price} RLUSD
+                      Quantity: {item.quantity} × {item.product.price} XRP
                     </p>
                   </div>
                   <p className="font-semibold text-gray-900 dark:text-white">
-                    {(item.product.price * item.quantity).toFixed(2)} RLUSD
+                    {(item.product.price * item.quantity).toFixed(2)} XRP
                   </p>
                 </div>
               ))}
@@ -202,7 +229,7 @@ export default function CheckoutPage() {
             <div className="space-y-2 mb-6">
               <div className="flex justify-between text-gray-600 dark:text-gray-400">
                 <span>Subtotal ({items.length} items)</span>
-                <span>{getTotalPrice().toFixed(2)} RLUSD</span>
+                <span>{getTotalPrice().toFixed(2)} XRP</span>
               </div>
               <div className="flex justify-between text-gray-600 dark:text-gray-400">
                 <span>Shipping</span>
@@ -211,7 +238,7 @@ export default function CheckoutPage() {
               <div className="border-t border-gray-200 pt-2 dark:border-gray-700">
                 <div className="flex justify-between text-lg font-bold text-gray-900 dark:text-white">
                   <span>Total</span>
-                  <span>{getTotalPrice().toFixed(2)} RLUSD</span>
+                  <span>{getTotalPrice().toFixed(2)} XRP</span>
                 </div>
               </div>
             </div>

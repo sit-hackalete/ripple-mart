@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useWallet } from "@/lib/wallet-context";
 import { useCart } from "@/contexts/CartContext";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import WalletModal from "@/components/WalletModal";
 import DeliveryTrackingModal from "@/components/DeliveryTrackingModal";
 
@@ -20,6 +20,12 @@ export default function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,7 +104,7 @@ export default function Header() {
               </svg>
               <div className="flex flex-col text-sm">
                 <span className="font-semibold text-blue-900 dark:text-blue-100">
-                  {balance !== null ? balance : "0.000000"} XRP
+                  {mounted && balance !== null ? balance : mounted ? "0.000000" : "0.000000"} XRP
                 </span>
               </div>
             </button>
@@ -130,12 +136,30 @@ export default function Header() {
                 d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
               />
             </svg>
-            {getTotalItems() > 0 && (
+            {mounted && getTotalItems() > 0 && (
               <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-xs text-white">
                 {getTotalItems()}
               </span>
             )}
           </Link>
+
+          {/* Delivery Tracking Icon */}
+          <button
+            onClick={() => {
+              if (!walletAddress) {
+                alert('Please connect your wallet to track deliveries');
+                return;
+              }
+              setIsTrackingModalOpen(true);
+            }}
+            className="p-2 text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400 transition-colors relative"
+            title="Track deliveries"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
         </div>
       </div>
 

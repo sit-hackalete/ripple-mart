@@ -34,7 +34,7 @@ function ProductGridContent({ products }: ProductGridProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {filteredProducts.map((product) => (
         <ProductCard key={product._id} product={product} />
       ))}
@@ -45,9 +45,9 @@ function ProductGridContent({ products }: ProductGridProps) {
 export default function ProductGrid({ products }: ProductGridProps) {
   return (
     <Suspense fallback={
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="animate-pulse rounded-lg border bg-gray-200 dark:bg-gray-800 h-80" />
+          <div key={i} className="animate-pulse rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 h-80" />
         ))}
       </div>
     }>

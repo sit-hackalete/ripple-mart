@@ -34,6 +34,8 @@ export async function POST(request: NextRequest) {
 
     // Create order (without _id - MongoDB will generate it)
     const now = new Date();
+    
+    // Start with just order_placed - stages will progress automatically
     const order = {
       userWalletAddress: walletAddress,
       items,
@@ -46,6 +48,7 @@ export async function POST(request: NextRequest) {
         {
           stage: "order_placed" as const,
           timestamp: now,
+          location: "Order confirmed",
         },
       ],
       estimatedDeliveryDate: new Date(now.getTime() + 72 * 60 * 60 * 1000), // 3 days from now

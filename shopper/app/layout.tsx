@@ -33,7 +33,7 @@ export default function RootLayout({
         <WalletProvider>
           <CartProvider>
             <Header />
-            <main className="min-h-screen bg-gray-50 dark:bg-black">
+            <main className="min-h-screen bg-blue-50/70 dark:bg-black">
               {children}
             </main>
           </CartProvider>

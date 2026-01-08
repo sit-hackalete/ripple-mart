@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Order, DeliveryStage } from '@/lib/models';
+import { Order, DeliveryStage, DeliveryStatus } from '@/lib/models';
+import DeliveryConfirmationModal from '@/components/DeliveryConfirmationModal';
+import OrderFeedbackForm from '@/components/OrderFeedbackForm';
 
 interface DeliveryTrackingModalProps {
   isOpen: boolean;
@@ -9,27 +11,31 @@ interface DeliveryTrackingModalProps {
   walletAddress: string | null;
 }
 
-const DELIVERY_STAGES: { key: DeliveryStage; label: string; icon: string }[] = [
-  { key: 'order_placed', label: 'Order Placed', icon: '📦' },
-  { key: 'order_shipped', label: 'Order Shipped', icon: '🚚' },
-  { key: 'in_transit', label: 'In Transit', icon: '✈️' },
-  { key: 'at_sorting_facility', label: 'At Sorting Facility', icon: '🏭' },
-  { key: 'out_for_delivery', label: 'Out for Delivery', icon: '🚗' },
-  { key: 'delivered', label: 'Delivered', icon: '✅' },
+const DELIVERY_STAGES: { key: DeliveryStage; label: string; icon: string; description?: string }[] = [
+  { key: 'order_placed', label: 'Order Placed', icon: '📦', description: 'Your order has been confirmed' },
+  { key: 'order_shipped', label: 'Order Shipped', icon: '🚚', description: 'Shipped from seller' },
+  { key: 'on_freight', label: 'On Freight', icon: '✈️', description: 'In transit via plane or ship' },
+  { key: 'arrived_singapore', label: 'Arrived in Singapore', icon: '🇸🇬', description: 'Package has arrived in Singapore' },
+  { key: 'at_sorting_facility', label: 'At Sorting Facility', icon: '🏭', description: 'Being sorted for delivery' },
+  { key: 'out_for_delivery', label: 'Out for Delivery', icon: '🚗', description: 'On the way to you' },
+  { key: 'delivered', label: 'Delivered', icon: '✅', description: 'Item has been delivered' },
 ];
 
 export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }: DeliveryTrackingModalProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [orderForConfirmation, setOrderForConfirmation] = useState<Order | null>(null);
 
   useEffect(() => {
     if (isOpen && walletAddress) {
       void fetchOrders();
-      // Poll for updates every 30 seconds
+      // Poll for updates every 10 seconds to see progress faster
       const interval = setInterval(() => {
         void fetchOrders();
-      }, 30000);
+      }, 10000);
       return () => clearInterval(interval);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -45,7 +51,64 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
         const ordersWithTracking = data.orders || [];
         // Update delivery stages automatically
         const updatedOrders = ordersWithTracking.map((order: Order) => updateDeliveryStage(order));
+        
+        // Check for auto-confirmation (7 days after delivery)
+        for (const order of updatedOrders) {
+          if (order.currentDeliveryStage === 'delivered' && 
+              !order.deliveryConfirmation?.confirmed && 
+              !order.deliveryConfirmation?.autoConfirmed) {
+            const deliveredStatus = order.deliveryTracking?.find((t: DeliveryStatus) => t.stage === 'delivered');
+            if (deliveredStatus?.timestamp) {
+              const deliveredDate = new Date(deliveredStatus.timestamp);
+              const now = new Date();
+              const diffTime = Math.abs(now.getTime() - deliveredDate.getTime());
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              
+              if (diffDays >= 7) {
+                await handleAutoConfirm(order);
+              }
+            }
+          }
+        }
+        
+        // Refresh orders after auto-confirmation
+        if (updatedOrders.some((o: Order) => o.currentDeliveryStage === 'delivered' && !o.deliveryConfirmation?.confirmed)) {
+          const refreshResponse = await fetch(`/api/orders?walletAddress=${walletAddress}`);
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            const refreshedOrders = (refreshData.orders || []).map((order: Order) => updateDeliveryStage(order));
+            setOrders(refreshedOrders);
+            
+            // Check for delivered orders that need confirmation
+            const deliveredOrder = refreshedOrders.find((o: Order) => 
+              o.currentDeliveryStage === 'delivered' && 
+              !o.deliveryConfirmation?.confirmed && 
+              !o.deliveryConfirmation?.autoConfirmed &&
+              !showConfirmation
+            );
+            
+            if (deliveredOrder && !orderForConfirmation) {
+              setOrderForConfirmation(deliveredOrder);
+              setShowConfirmation(true);
+            }
+            return;
+          }
+        }
+        
         setOrders(updatedOrders);
+        
+        // Check for delivered orders that need confirmation
+        const deliveredOrder = updatedOrders.find((o: Order) => 
+          o.currentDeliveryStage === 'delivered' && 
+          !o.deliveryConfirmation?.confirmed && 
+          !o.deliveryConfirmation?.autoConfirmed &&
+          !showConfirmation
+        );
+        
+        if (deliveredOrder && !orderForConfirmation) {
+          setOrderForConfirmation(deliveredOrder);
+          setShowConfirmation(true);
+        }
         
         // Auto-select first active order if none selected
         if (!selectedOrder && updatedOrders.length > 0) {
@@ -67,48 +130,171 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
   };
 
   const updateDeliveryStage = (order: Order): Order => {
-    if (!order.createdAt || order.status === 'cancelled' || order.currentDeliveryStage === 'delivered') {
+    if (!order.createdAt || order.status === 'cancelled') {
       return order;
     }
 
+    // If order already has all tracking stages with timestamps, preserve them
+    // This ensures the realistic fake timestamps from the backend are maintained
+    if (order.deliveryTracking && order.deliveryTracking.length >= 7) {
+      // Check if delivered and show confirmation if needed
+      if (order.currentDeliveryStage === 'delivered' && 
+          !order.deliveryConfirmation?.confirmed && 
+          !order.deliveryConfirmation?.autoConfirmed) {
+        const deliveredStatus = order.deliveryTracking.find((t: DeliveryStatus) => t.stage === 'delivered');
+        if (deliveredStatus?.timestamp) {
+          const deliveredDate = new Date(deliveredStatus.timestamp);
+          const now = new Date();
+          const diffTime = Math.abs(now.getTime() - deliveredDate.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          // Auto-confirm after 7 days
+          if (diffDays >= 7 && !order.deliveryConfirmation?.autoConfirmed) {
+            // Will be handled in fetchOrders
+          }
+        }
+      }
+      return order;
+    }
+
+    // For orders without full tracking, ensure they show as delivered with realistic timestamps
     const now = new Date();
     const orderDate = new Date(order.createdAt);
     const hoursSinceOrder = (now.getTime() - orderDate.getTime()) / (1000 * 60 * 60);
 
-    // Auto-progress stages based on time (simulating delivery progression)
-    let currentStage: DeliveryStage = order.currentDeliveryStage || 'order_placed';
-    
-    if (hoursSinceOrder >= 0) currentStage = 'order_placed';
-    if (hoursSinceOrder >= 2) currentStage = 'order_shipped';
-    if (hoursSinceOrder >= 8) currentStage = 'in_transit';
-    if (hoursSinceOrder >= 24) currentStage = 'at_sorting_facility';
-    if (hoursSinceOrder >= 48) currentStage = 'out_for_delivery';
-    if (hoursSinceOrder >= 72) currentStage = 'delivered';
+    // If order is older than 72 hours, mark as delivered with realistic timestamps
+    if (hoursSinceOrder >= 72 && order.currentDeliveryStage !== 'delivered') {
+      const orderPlacedTime = new Date(orderDate);
+      const orderShippedTime = new Date(orderDate.getTime() + 2 * 60 * 60 * 1000);
+      const onFreightTime = new Date(orderDate.getTime() + 8 * 60 * 60 * 1000);
+      const arrivedSingaporeTime = new Date(orderDate.getTime() + 24 * 60 * 60 * 1000);
+      const atSortingTime = new Date(orderDate.getTime() + 36 * 60 * 60 * 1000);
+      const outForDeliveryTime = new Date(orderDate.getTime() + 48 * 60 * 60 * 1000);
+      const deliveredTime = new Date(orderDate.getTime() + 60 * 60 * 60 * 1000);
 
-    // If stage changed, update tracking
-    if (currentStage !== order.currentDeliveryStage) {
-      const newTracking = order.deliveryTracking || [];
-      const stageExists = newTracking.some(t => t.stage === currentStage);
-      
-      if (!stageExists) {
-        newTracking.push({
-          stage: currentStage,
-          timestamp: new Date(),
-        });
-        
-        // Update order in backend
-        updateOrderDeliveryStage(order._id!, currentStage, newTracking);
-      }
+      const fullTracking = [
+        { stage: 'order_placed' as const, timestamp: orderPlacedTime, location: 'Order confirmed' },
+        { stage: 'order_shipped' as const, timestamp: orderShippedTime, location: 'Shipped from seller warehouse' },
+        { stage: 'on_freight' as const, timestamp: onFreightTime, location: 'In transit via air freight' },
+        { stage: 'arrived_singapore' as const, timestamp: arrivedSingaporeTime, location: 'Changi Airport, Singapore' },
+        { stage: 'at_sorting_facility' as const, timestamp: atSortingTime, location: 'Singapore Sorting Facility' },
+        { stage: 'out_for_delivery' as const, timestamp: outForDeliveryTime, location: 'Out for delivery' },
+        { stage: 'delivered' as const, timestamp: deliveredTime, location: 'Delivered to recipient' },
+      ];
+
+      // Update order in backend
+      updateOrderDeliveryStage(order._id!, 'delivered', fullTracking);
+
+      return {
+        ...order,
+        currentDeliveryStage: 'delivered',
+        deliveryTracking: fullTracking,
+        status: 'completed',
+      };
+    }
+
+    // For newer orders, use progressive stages with SPEEDED UP timing (minutes instead of hours)
+    // This makes it progress faster so users can see it step by step
+    const minutesSinceOrder = hoursSinceOrder * 60;
+    
+    // Start with existing tracking to preserve what's already there
+    const tracking = [...(order.deliveryTracking || [])];
+    let currentStage: DeliveryStage = order.currentDeliveryStage || 'order_placed';
+    let needsUpdate = false;
+    
+    // Progressive stages with realistic timestamps (sped up for demo)
+    // Only add stages that don't exist yet to prevent jumping
+    // Stage 1: Order Placed (immediate)
+    if (minutesSinceOrder >= 0 && !tracking.some(t => t.stage === 'order_placed')) {
+      tracking.push({
+        stage: 'order_placed',
+        timestamp: orderDate,
+        location: 'Order confirmed',
+      });
+      currentStage = 'order_placed';
+      needsUpdate = true;
+    }
+    
+    // Stage 2: Order Shipped (5 minutes later)
+    if (minutesSinceOrder >= 5 && !tracking.some(t => t.stage === 'order_shipped')) {
+      tracking.push({
+        stage: 'order_shipped',
+        timestamp: new Date(orderDate.getTime() + 5 * 60 * 1000),
+        location: 'Shipped from seller warehouse',
+      });
+      currentStage = 'order_shipped';
+      needsUpdate = true;
+    }
+    
+    // Stage 3: On Freight (15 minutes later)
+    if (minutesSinceOrder >= 15 && !tracking.some(t => t.stage === 'on_freight')) {
+      tracking.push({
+        stage: 'on_freight',
+        timestamp: new Date(orderDate.getTime() + 15 * 60 * 1000),
+        location: 'In transit via air freight',
+      });
+      currentStage = 'on_freight';
+      needsUpdate = true;
+    }
+    
+    // Stage 4: Arrived Singapore (30 minutes later)
+    if (minutesSinceOrder >= 30 && !tracking.some(t => t.stage === 'arrived_singapore')) {
+      tracking.push({
+        stage: 'arrived_singapore',
+        timestamp: new Date(orderDate.getTime() + 30 * 60 * 1000),
+        location: 'Changi Airport, Singapore',
+      });
+      currentStage = 'arrived_singapore';
+      needsUpdate = true;
+    }
+    
+    // Stage 5: At Sorting Facility (45 minutes later)
+    if (minutesSinceOrder >= 45 && !tracking.some(t => t.stage === 'at_sorting_facility')) {
+      tracking.push({
+        stage: 'at_sorting_facility',
+        timestamp: new Date(orderDate.getTime() + 45 * 60 * 1000),
+        location: 'Singapore Sorting Facility',
+      });
+      currentStage = 'at_sorting_facility';
+      needsUpdate = true;
+    }
+    
+    // Stage 6: Out for Delivery (60 minutes later)
+    if (minutesSinceOrder >= 60 && !tracking.some(t => t.stage === 'out_for_delivery')) {
+      tracking.push({
+        stage: 'out_for_delivery',
+        timestamp: new Date(orderDate.getTime() + 60 * 60 * 1000),
+        location: 'Out for delivery',
+      });
+      currentStage = 'out_for_delivery';
+      needsUpdate = true;
+    }
+    
+    // Stage 7: Delivered (75 minutes later)
+    if (minutesSinceOrder >= 75 && !tracking.some(t => t.stage === 'delivered')) {
+      tracking.push({
+        stage: 'delivered',
+        timestamp: new Date(orderDate.getTime() + 75 * 60 * 1000),
+        location: 'Delivered to recipient',
+      });
+      currentStage = 'delivered';
+      needsUpdate = true;
+    }
+
+    // Only update backend if a new stage was added (prevents unnecessary updates and jumping)
+    if (needsUpdate && currentStage !== order.currentDeliveryStage) {
+      // Update order in backend
+      updateOrderDeliveryStage(order._id!, currentStage, tracking);
     }
 
     return {
       ...order,
       currentDeliveryStage: currentStage,
-      deliveryTracking: order.deliveryTracking || [],
+      deliveryTracking: tracking.length > 0 ? tracking : (order.deliveryTracking || []),
     };
   };
 
-  const updateOrderDeliveryStage = async (orderId: string | undefined, stage: DeliveryStage, tracking: Array<{ stage: DeliveryStage; timestamp: Date }>) => {
+  const updateOrderDeliveryStage = async (orderId: string | undefined, stage: DeliveryStage, tracking: Array<{ stage: DeliveryStage; timestamp: Date | string; location?: string }>) => {
     if (!orderId) return;
     try {
       await fetch(`/api/orders/${orderId}/tracking`, {
@@ -120,6 +306,60 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
       fetchOrders();
     } catch (error) {
       console.error('Error updating delivery stage:', error);
+    }
+  };
+
+  const handleConfirmDelivery = async (orderId: string, confirmed: boolean) => {
+    try {
+      const response = await fetch(`/api/orders/${orderId}/confirm`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmed, notDelivered: !confirmed }),
+      });
+      
+      if (response.ok) {
+        await fetchOrders();
+        if (confirmed) {
+          setShowConfirmation(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error confirming delivery:', error);
+      throw error;
+    }
+  };
+
+  const handleAutoConfirm = async (order: Order) => {
+    if (!order._id) return;
+    try {
+      await handleConfirmDelivery(order._id, true);
+      // Mark as auto-confirmed
+      await fetch(`/api/orders/${order._id}/confirm`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmed: true, autoConfirmed: true }),
+      });
+      await fetchOrders();
+    } catch (error) {
+      console.error('Error auto-confirming:', error);
+    }
+  };
+
+  const handleSubmitFeedback = async (orderId: string, rating: number, comment: string) => {
+    try {
+      const response = await fetch(`/api/orders/${orderId}/feedback`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating, comment }),
+      });
+      
+      if (response.ok) {
+        await fetchOrders();
+        setShowFeedback(false);
+      }
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      throw error;
     }
   };
 
@@ -216,7 +456,7 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
                               Order #{order._id?.slice(-8).toUpperCase()}
                             </p>
                             <p className="text-sm text-gray-500 dark:text-gray-400">
-                              {order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''} • {order.total?.toFixed(2)} RLUSD
+                              {order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''} • {order.total?.toFixed(2)} XRP
                             </p>
                           </div>
                           <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
@@ -322,7 +562,7 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
                               {item.product?.name || 'Unknown'} × {item.quantity}
                             </span>
                             <span className="text-gray-500 dark:text-gray-500">
-                              {((item.product?.price || 0) * item.quantity).toFixed(2)} RLUSD
+                              {((item.product?.price || 0) * item.quantity).toFixed(2)} XRP
                             </span>
                           </div>
                         ))}
@@ -362,6 +602,36 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
           )}
         </div>
       </div>
+
+      {/* Delivery Confirmation Modal */}
+      {orderForConfirmation && (
+        <DeliveryConfirmationModal
+          isOpen={showConfirmation}
+          onClose={() => {
+            setShowConfirmation(false);
+            setOrderForConfirmation(null);
+          }}
+          order={orderForConfirmation}
+          onConfirm={handleConfirmDelivery}
+          onShowFeedback={(order) => {
+            setOrderForConfirmation(order);
+            setShowFeedback(true);
+          }}
+        />
+      )}
+
+      {/* Feedback Form */}
+      {orderForConfirmation && (
+        <OrderFeedbackForm
+          isOpen={showFeedback}
+          onClose={() => {
+            setShowFeedback(false);
+            setOrderForConfirmation(null);
+          }}
+          order={orderForConfirmation}
+          onSubmit={handleSubmitFeedback}
+        />
+      )}
     </div>
   );
 }
