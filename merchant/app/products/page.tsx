@@ -21,7 +21,7 @@ import {
 export default function ProductsPage() {
   const { isConnected, walletAddress } = useWallet();
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
@@ -58,8 +58,6 @@ export default function ProductsPage() {
   useEffect(() => {
     if (isConnected && walletAddress) {
       void fetchProducts();
-    } else {
-      setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, walletAddress]);
@@ -219,28 +217,9 @@ export default function ProductsPage() {
   if (loading) {
     return (
       <div className="container mx-auto px-6 py-20">
-        <div className="max-w-2xl mx-auto text-center">
-          <div className="mb-8">
-            {/* Animated gradient circle */}
-            <div className="relative w-24 h-24 mx-auto mb-8">
-              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 animate-spin" style={{ animationDuration: '3s' }} />
-              <div className="absolute inset-2 rounded-full bg-white dark:bg-gray-900 flex items-center justify-center">
-                <Package className="w-10 h-10 text-blue-600 dark:text-blue-400" strokeWidth={2} />
-              </div>
-            </div>
-            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-3 tracking-tight">
-              Loading Products
-            </h2>
-            <p className="text-base text-slate-600 dark:text-slate-400 mb-6">
-              Please wait while we establish your connection...
-            </p>
-            {/* Animated dots */}
-            <div className="flex justify-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-2 h-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-2 h-2 rounded-full bg-pink-500 animate-bounce" style={{ animationDelay: '300ms' }} />
-            </div>
-          </div>
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 dark:border-slate-800 border-t-[#007AFF]"></div>
+          <p className="mt-6 text-slate-600 dark:text-slate-400 text-lg">Loading your products...</p>
         </div>
       </div>
     );
