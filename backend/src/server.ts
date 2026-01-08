@@ -4,6 +4,8 @@ import cors from "cors"
 import "dotenv/config"
 import escrowRoutes from "./routes/escrow"
 import { startAutoReleaseWorker } from "./services/worker"
+import { startLedgerListener } from "./services/listener"
+import { WALLET_1, WALLET_2 } from "./wallets"
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -27,6 +29,7 @@ const start = async () => {
     
     // Start workers
     startAutoReleaseWorker()
+    startLedgerListener([WALLET_1.address, WALLET_2.address])
     
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`)
