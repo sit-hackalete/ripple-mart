@@ -10,23 +10,34 @@ async function getProduct(id: string): Promise<Product | null> {
     const db = client.db('ripple_mart');
     const { ObjectId } = await import('mongodb');
     
+    // Validate ObjectId format
+    if (!ObjectId.isValid(id)) {
+      console.error('Invalid ObjectId format:', id);
+      return null;
+    }
+
     const product = await db.collection('products').findOne({
       _id: new ObjectId(id),
     });
 
     if (!product) {
+      console.error('Product not found with id:', id);
       return null;
     }
 
+    // Map MongoDB fields to Product interface
     return {
       _id: product._id.toString(),
       name: product.name,
       description: product.description,
       price: product.price,
-      image: product.image,
-      images: product.images || [product.image],
+      image: product.image || product.imageUrl || '/placeholder-product.jpg',
+      imageUrl: product.imageUrl || product.image,
+      images: product.images || (product.imageUrl ? [product.imageUrl] : [product.image || '/placeholder-product.jpg']),
       category: product.category,
       stock: product.stock,
+      isActive: product.isActive !== false,
+      merchantWalletAddress: product.merchantWalletAddress,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
     } as Product;
@@ -39,9 +50,10 @@ async function getProduct(id: string): Promise<Product | null> {
 export default async function ProductPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const product = await getProduct(params.id);
+  const { id } = await params;
+  const product = await getProduct(id);
 
   if (!product) {
     notFound();
@@ -54,11 +66,12 @@ export default async function ProductPage({
         <div className="space-y-4">
           <div className="aspect-square w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-800 dark:bg-gray-800">
             <Image
-              src={product.image || '/placeholder-product.jpg'}
+              src={product.image || product.imageUrl || '/placeholder-product.jpg'}
               alt={product.name}
               width={800}
               height={800}
               className="h-full w-full object-cover"
+              unoptimized
             />
           </div>
           {product.images && product.images.length > 1 && (
@@ -74,6 +87,7 @@ export default async function ProductPage({
                     width={200}
                     height={200}
                     className="h-full w-full object-cover"
+                    unoptimized
                   />
                 </div>
               ))}
@@ -96,7 +110,7 @@ export default async function ProductPage({
 
           <div className="flex items-center gap-4">
             <span className="text-4xl font-bold text-blue-600">
-              {product.price} RLUSD
+              {product.price} XRP
             </span>
             <span
               className={`rounded-full px-3 py-1 text-sm font-medium ${

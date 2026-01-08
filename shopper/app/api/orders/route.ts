@@ -33,13 +33,22 @@ export async function POST(request: NextRequest) {
     );
 
     // Create order (without _id - MongoDB will generate it)
+    const now = new Date();
     const order = {
       userWalletAddress: walletAddress,
       items,
       total,
       status: "pending" as const,
       transactionHash,
-      createdAt: new Date(),
+      createdAt: now,
+      currentDeliveryStage: "order_placed" as const,
+      deliveryTracking: [
+        {
+          stage: "order_placed" as const,
+          timestamp: now,
+        },
+      ],
+      estimatedDeliveryDate: new Date(now.getTime() + 72 * 60 * 60 * 1000), // 3 days from now
     };
 
     const result = await db.collection("orders").insertOne(order);

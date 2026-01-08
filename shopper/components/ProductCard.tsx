@@ -9,16 +9,19 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
+  const imageSrc = product.image || product.imageUrl || '/placeholder-product.jpg';
+
   return (
     <Link href={`/products/${product._id}`}>
       <div className="group relative overflow-hidden rounded-lg border border-gray-200 bg-white transition-shadow hover:shadow-lg dark:border-gray-800 dark:bg-gray-900">
         <div className="aspect-square w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
           <Image
-            src={product.image || '/placeholder-product.jpg'}
+            src={imageSrc}
             alt={product.name}
             width={400}
             height={400}
             className="h-full w-full object-cover transition-transform group-hover:scale-105"
+            unoptimized
           />
         </div>
         <div className="p-4">
@@ -30,7 +33,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           </p>
           <div className="flex items-center justify-between">
             <span className="text-xl font-bold text-blue-600">
-              {product.price} RLUSD
+              {product.price} XRP
             </span>
             <span className="text-sm text-gray-500">
               {product.stock > 0 ? 'In Stock' : 'Out of Stock'}

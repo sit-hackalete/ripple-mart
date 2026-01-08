@@ -43,6 +43,21 @@ export interface CartItem {
   quantity: number;
 }
 
+export type DeliveryStage = 
+  | "order_placed"
+  | "order_shipped"
+  | "in_transit"
+  | "at_sorting_facility"
+  | "out_for_delivery"
+  | "delivered";
+
+export interface DeliveryStatus {
+  stage: DeliveryStage;
+  timestamp: Date;
+  location?: string;
+  carrier?: string;
+}
+
 export interface Order {
   _id?: string;
   userWalletAddress: string;
@@ -51,6 +66,9 @@ export interface Order {
   status: "pending" | "completed" | "cancelled";
   transactionHash?: string;
   createdAt?: Date;
+  deliveryTracking?: DeliveryStatus[];
+  currentDeliveryStage?: DeliveryStage;
+  estimatedDeliveryDate?: Date;
 }
 
 // Keep User for backward compatibility (type alias)
