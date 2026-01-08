@@ -496,3 +496,4 @@ The Ripple Mart Merchant Dashboard now embodies the **"Soft Fintech Minimalism"*
 *Built with ❤️ for the Ripple ecosystem*
 *Design System v1.0 - January 2026*
 
+
