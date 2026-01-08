@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import sdk from '@crossmarkio/sdk';
-import sdk from '@crossmarkio/sdk';
 
 export default function CheckoutPage() {
   const { items, getTotalPrice, clearCart } = useCart();
@@ -70,7 +69,9 @@ export default function CheckoutPage() {
 
       // Get transaction hash from response
       // Crossmark response structure: response.data.resp.result.hash
-      const transactionHash = (response.data.resp as any)?.hash || (response.data.resp as any)?.result?.hash;
+      type RespType = { hash?: string; result?: { hash?: string } };
+      const resp = response.data.resp as RespType;
+      const transactionHash = resp?.hash || resp?.result?.hash;
 
       if (!transactionHash) {
         throw new Error('Transaction failed or was cancelled');
@@ -96,9 +97,10 @@ export default function CheckoutPage() {
       } else {
         throw new Error('Failed to create order');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Checkout error:', err);
-      setError(err.message || 'Checkout failed. Please try again.');
+      const error = err as Error;
+      setError(error.message || 'Checkout failed. Please try again.');
     } finally {
       setIsProcessing(false);
     }

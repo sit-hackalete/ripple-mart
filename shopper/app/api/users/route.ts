@@ -16,30 +16,37 @@ export async function GET(request: NextRequest) {
     try {
       const client = await clientPromise();
 
-    const db = client.db("ripple_mart");
+      const db = client.db("ripple_mart");
 
-    // Use wallet address as _id (primary key)
-    let shopper = await db.collection("shoppers").findOne({ _id: walletAddress });
+      // Use wallet address as _id (primary key)
+      // Note: _id is a string (wallet address), not ObjectId
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let shopper: any = await db
+        .collection("shoppers")
+        .findOne({ _id: walletAddress as unknown as any });
 
-    if (!shopper) {
-      // Create new shopper on first login (onboarding)
-      const newShopper = {
-        _id: walletAddress, // Use wallet address as primary key
-        walletAddress,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        totalOrders: 0,
-        totalSpent: 0,
-      };
+      if (!shopper) {
+        // Create new shopper on first login (onboarding)
+        const newShopper = {
+          _id: walletAddress, // Use wallet address as primary key
+          walletAddress,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          totalOrders: 0,
+          totalSpent: 0,
+        };
 
-      await db.collection("shoppers").insertOne(newShopper);
-      shopper = newShopper;
-    }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await db.collection("shoppers").insertOne(newShopper as unknown as any);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        shopper = newShopper as any;
+      }
 
       return NextResponse.json({ shopper }, { status: 200 });
-    } catch (mongoError: any) {
+    } catch (mongoError: unknown) {
       // MongoDB not available, return basic shopper object
-      if (mongoError.message?.includes("Mongo URI")) {
+      const error = mongoError as Error;
+      if (error.message?.includes("Mongo URI")) {
         return NextResponse.json(
           {
             shopper: {
@@ -52,7 +59,7 @@ export async function GET(request: NextRequest) {
           { status: 200 }
         );
       }
-      throw mongoError;
+      throw error;
     }
   } catch (error) {
     console.error("Error fetching/creating shopper:", error);
@@ -78,38 +85,54 @@ export async function POST(request: NextRequest) {
     try {
       const client = await clientPromise();
 
-    const db = client.db("ripple_mart");
+      const db = client.db("ripple_mart");
 
-    // Update or create shopper using wallet address as _id
-    const updateData: any = {
-      $set: {
-        walletAddress,
-        updatedAt: new Date(),
-      },
-    };
-
-    if (name !== undefined) updateData.$set.name = name;
-    if (email !== undefined) updateData.$set.email = email;
-
-    const result = await db.collection("shoppers").updateOne(
-      { _id: walletAddress },
-      {
-        ...updateData,
+      // Update or create shopper using wallet address as _id
+      const updateData: {
+        $set: {
+          walletAddress: string;
+          updatedAt: Date;
+          name?: string;
+          email?: string;
+        };
+        $setOnInsert: {
+          createdAt: Date;
+          totalOrders: number;
+          totalSpent: number;
+        };
+      } = {
+        $set: {
+          walletAddress,
+          updatedAt: new Date(),
+        },
         $setOnInsert: {
           createdAt: new Date(),
           totalOrders: 0,
           totalSpent: 0,
         },
-      },
-      { upsert: true }
-    );
+      };
 
-      const shopper = await db.collection("shoppers").findOne({ _id: walletAddress });
+      if (name !== undefined) updateData.$set.name = name;
+      if (email !== undefined) updateData.$set.email = email;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await db
+        .collection("shoppers")
+        .updateOne({ _id: walletAddress as unknown as any }, updateData, {
+          upsert: true,
+        });
+
+      // Note: _id is a string (wallet address), not ObjectId
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const shopper: any = await db
+        .collection("shoppers")
+        .findOne({ _id: walletAddress as unknown as any });
 
       return NextResponse.json({ shopper }, { status: 200 });
-    } catch (mongoError: any) {
+    } catch (mongoError: unknown) {
       // MongoDB not available, return basic shopper object
-      if (mongoError.message?.includes("Mongo URI")) {
+      const error = mongoError as Error;
+      if (error.message?.includes("Mongo URI")) {
         return NextResponse.json(
           {
             shopper: {
@@ -124,9 +147,9 @@ export async function POST(request: NextRequest) {
           { status: 200 }
         );
       }
-      throw mongoError;
+      throw error;
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error updating shopper:", error);
     return NextResponse.json(
       { error: "Failed to update shopper" },

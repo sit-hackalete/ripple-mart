@@ -53,5 +53,5 @@ export interface Order {
   createdAt?: Date;
 }
 
-// Keep User for backward compatibility
-export interface User extends Shopper {}
+// Keep User for backward compatibility (type alias)
+export type User = Shopper;

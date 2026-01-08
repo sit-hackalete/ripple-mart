@@ -16,11 +16,18 @@ interface WalletContextType {
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 // Helper function to extract network string from network object
-const getNetworkString = (network: any): string | null => {
+const getNetworkString = (network: unknown): string | null => {
   if (!network) return null;
   if (typeof network === 'string') return network;
   // Network object has properties like label, type, etc.
-  return network.label || network.type || network.protocol || null;
+  if (typeof network === 'object' && network !== null) {
+    const networkObj = network as Record<string, unknown>;
+    return (networkObj.label as string) || 
+           (networkObj.type as string) || 
+           (networkObj.protocol as string) || 
+           null;
+  }
+  return null;
 };
 
 export function WalletProvider({ children }: { children: ReactNode }) {
@@ -40,7 +47,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const installed = await sdk.methods.isInstalled();
       setIsInstalled(installed ?? false);
       return installed ?? false;
-    } catch (error) {
+    } catch {
       setIsInstalled(false);
       return false;
     }
@@ -129,19 +136,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ walletAddress: address }),
           });
-        } catch (dbError) {
+        } catch (dbError: unknown) {
           console.error('Error saving to database:', dbError);
           // Continue even if DB save fails
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error connecting wallet:', error);
       
       // User might have rejected the connection
+      const errorMessage = error instanceof Error ? error.message : String(error);
       if (
-        error?.message?.toLowerCase().includes('rejected') ||
-        error?.message?.toLowerCase().includes('cancel') ||
-        error?.message?.toLowerCase().includes('denied')
+        errorMessage.toLowerCase().includes('rejected') ||
+        errorMessage.toLowerCase().includes('cancel') ||
+        errorMessage.toLowerCase().includes('denied')
       ) {
         alert('Wallet connection was cancelled.');
       } else {
@@ -161,9 +169,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Initialize and set up event listeners
   useEffect(() => {
-    // Initial check
-    checkInstalled();
-    checkConnection();
+    // Initial check - use setTimeout to avoid calling setState synchronously
+    const initialize = async () => {
+      await checkInstalled();
+      await checkConnection();
+    };
+    void initialize();
 
     // Set up event listeners for Crossmark events
     const handleSignOut = () => {
@@ -173,9 +184,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem('walletAddress');
     };
 
-    const handleNetworkChange = (newNetwork: any) => {
+    const handleNetworkChange = (newNetwork: unknown) => {
       // The network-change event passes the network object directly or wrapped
-      const networkObj = newNetwork?.network || newNetwork;
+      const networkObj = (newNetwork as { network?: unknown })?.network || newNetwork;
       setNetwork(getNetworkString(networkObj));
     };
 
@@ -198,6 +209,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       // Note: Crossmark SDK doesn't expose a way to remove listeners
       // but this is fine as the component unmounts
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

@@ -21,10 +21,11 @@ export default function ProductsPage() {
 
   useEffect(() => {
     if (isConnected && walletAddress) {
-      fetchProducts();
+      void fetchProducts();
     } else {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, walletAddress]);
 
   const fetchProducts = async () => {
@@ -203,6 +204,7 @@ export default function ProductsPage() {
               }`}
             >
               {product.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={product.imageUrl}
                   alt={product.name}

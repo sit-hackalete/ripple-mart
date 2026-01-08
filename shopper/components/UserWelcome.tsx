@@ -22,6 +22,7 @@ export default function UserWelcome() {
     } else {
       setUserInfo(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, walletAddress]);
 
   const fetchUserInfo = async () => {

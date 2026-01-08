@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     let db;
     try {
       db = await getDatabase();
-    } catch (dbError) {
+    } catch {
       console.log('Database not available, returning dummy data');
       // Return dummy data when database is not set up
       return NextResponse.json({

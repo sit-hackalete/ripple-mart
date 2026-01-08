@@ -21,8 +21,14 @@ interface WalletContextType {
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
+// Type for network from Crossmark SDK
+type NetworkType =
+  | string
+  | { label?: string; type?: string; protocol?: string }
+  | null;
+
 // Helper function to extract network string from network object
-const getNetworkString = (network: any): string | null => {
+const getNetworkString = (network: NetworkType): string | null => {
   if (!network) return null;
   if (typeof network === "string") return network;
   // Network object has properties like label, type, etc.
@@ -46,7 +52,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const installed = await sdk.methods.isInstalled();
       setIsInstalled(installed ?? false);
       return installed ?? false;
-    } catch (error) {
+    } catch {
       setIsInstalled(false);
       return false;
     }
@@ -75,7 +81,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         if (address) {
           setWalletAddress(address);
           setIsConnected(true);
-          setNetwork(getNetworkString(currentNetwork));
+          setNetwork(getNetworkString(currentNetwork || null));
 
           // Update localStorage
           localStorage.setItem("walletAddress", address);
@@ -138,14 +144,18 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           // Continue even if DB save fails
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error connecting wallet:", error);
 
       // User might have rejected the connection
+      const errorMessage =
+        error instanceof Error
+          ? error.message.toLowerCase()
+          : String(error).toLowerCase();
       if (
-        error?.message?.toLowerCase().includes("rejected") ||
-        error?.message?.toLowerCase().includes("cancel") ||
-        error?.message?.toLowerCase().includes("denied")
+        errorMessage.includes("rejected") ||
+        errorMessage.includes("cancel") ||
+        errorMessage.includes("denied")
       ) {
         alert("Wallet connection was cancelled.");
       } else {
@@ -167,10 +177,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Initialize and set up event listeners
   useEffect(() => {
-    // Initial check
-    checkInstalled();
-    checkConnection();
-
     // Set up event listeners for Crossmark events
     const handleSignOut = () => {
       setIsConnected(false);
@@ -179,10 +185,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem("walletAddress");
     };
 
-    const handleNetworkChange = (newNetwork: any) => {
+    const handleNetworkChange = (
+      newNetwork: NetworkType | { network?: NetworkType }
+    ) => {
       // The network-change event passes the network object directly or wrapped
-      const networkObj = newNetwork?.network || newNetwork;
-      setNetwork(getNetworkString(networkObj));
+      const networkObj =
+        newNetwork && typeof newNetwork === "object" && "network" in newNetwork
+          ? newNetwork.network || null
+          : (newNetwork as NetworkType);
+      setNetwork(getNetworkString(networkObj || null));
     };
 
     const handleUserChange = () => {
@@ -195,8 +206,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     sdk.on("network-change", handleNetworkChange);
     sdk.on("user-change", handleUserChange);
 
+    // Initial checks - run asynchronously to avoid setState in effect
+    void checkInstalled().then(() => {
+      void checkConnection();
+    });
+
     // Check connection periodically (every 5 seconds)
-    const interval = setInterval(checkConnection, 5000);
+    const interval = setInterval(() => {
+      void checkConnection();
+    }, 5000);
 
     // Cleanup
     return () => {
@@ -204,6 +222,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       // Note: Crossmark SDK doesn't expose a way to remove listeners
       // but this is fine as the component unmounts
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
