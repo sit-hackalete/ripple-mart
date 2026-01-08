@@ -197,10 +197,13 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
     // This makes it progress faster so users can see it step by step
     const minutesSinceOrder = hoursSinceOrder * 60;
     
+    // Start with existing tracking to preserve what's already there
+    const tracking = [...(order.deliveryTracking || [])];
     let currentStage: DeliveryStage = order.currentDeliveryStage || 'order_placed';
-    const tracking = order.deliveryTracking || [];
+    let needsUpdate = false;
     
     // Progressive stages with realistic timestamps (sped up for demo)
+    // Only add stages that don't exist yet to prevent jumping
     // Stage 1: Order Placed (immediate)
     if (minutesSinceOrder >= 0 && !tracking.some(t => t.stage === 'order_placed')) {
       tracking.push({
@@ -209,6 +212,7 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
         location: 'Order confirmed',
       });
       currentStage = 'order_placed';
+      needsUpdate = true;
     }
     
     // Stage 2: Order Shipped (5 minutes later)
@@ -219,6 +223,7 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
         location: 'Shipped from seller warehouse',
       });
       currentStage = 'order_shipped';
+      needsUpdate = true;
     }
     
     // Stage 3: On Freight (15 minutes later)
@@ -229,6 +234,7 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
         location: 'In transit via air freight',
       });
       currentStage = 'on_freight';
+      needsUpdate = true;
     }
     
     // Stage 4: Arrived Singapore (30 minutes later)
@@ -239,6 +245,7 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
         location: 'Changi Airport, Singapore',
       });
       currentStage = 'arrived_singapore';
+      needsUpdate = true;
     }
     
     // Stage 5: At Sorting Facility (45 minutes later)
@@ -249,6 +256,7 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
         location: 'Singapore Sorting Facility',
       });
       currentStage = 'at_sorting_facility';
+      needsUpdate = true;
     }
     
     // Stage 6: Out for Delivery (60 minutes later)
@@ -259,6 +267,7 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
         location: 'Out for delivery',
       });
       currentStage = 'out_for_delivery';
+      needsUpdate = true;
     }
     
     // Stage 7: Delivered (75 minutes later)
@@ -269,10 +278,11 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
         location: 'Delivered to recipient',
       });
       currentStage = 'delivered';
+      needsUpdate = true;
     }
 
-    // If stage changed or new tracking added, update in backend
-    if (currentStage !== order.currentDeliveryStage || tracking.length > (order.deliveryTracking?.length || 0)) {
+    // Only update backend if a new stage was added (prevents unnecessary updates and jumping)
+    if (needsUpdate && currentStage !== order.currentDeliveryStage) {
       // Update order in backend
       updateOrderDeliveryStage(order._id!, currentStage, tracking);
     }
@@ -280,7 +290,7 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
     return {
       ...order,
       currentDeliveryStage: currentStage,
-      deliveryTracking: order.deliveryTracking || [],
+      deliveryTracking: tracking.length > 0 ? tracking : (order.deliveryTracking || []),
     };
   };
 
