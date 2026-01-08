@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import clientPromise from '@/lib/mongodb';
+import clientPromise, { isMongoConnected } from '@/lib/mongodb';
 import { Order } from '@/types';
 
 export async function POST(request: NextRequest) {
@@ -14,7 +14,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // If MongoDB is not connected, return success but don't save
+    if (!isMongoConnected() || !clientPromise) {
+      console.log('MongoDB not connected - order not saved (demo mode)');
+      return NextResponse.json(
+        { success: true, orderId: 'demo-order-' + Date.now(), demo: true },
+        { status: 201 }
+      );
+    }
+
     const client = await clientPromise;
+    if (!client) {
+      return NextResponse.json(
+        { success: true, orderId: 'demo-order-' + Date.now(), demo: true },
+        { status: 201 }
+      );
+    }
+    
     const db = client.db('ripple_mart');
 
     // Create or update user
@@ -64,7 +80,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // If MongoDB is not connected, return empty array
+    if (!isMongoConnected() || !clientPromise) {
+      return NextResponse.json({ orders: [] }, { status: 200 });
+    }
+
     const client = await clientPromise;
+    if (!client) {
+      return NextResponse.json({ orders: [] }, { status: 200 });
+    }
+    
     const db = client.db('ripple_mart');
 
     const orders = await db

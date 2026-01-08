@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import clientPromise from '@/lib/mongodb';
+import clientPromise, { isMongoConnected } from '@/lib/mongodb';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +13,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // If MongoDB is not connected, return a basic user object
+    if (!isMongoConnected() || !clientPromise) {
+      return NextResponse.json(
+        { user: { walletAddress, createdAt: new Date(), updatedAt: new Date() } },
+        { status: 200 }
+      );
+    }
+
     const client = await clientPromise;
+    if (!client) {
+      return NextResponse.json(
+        { user: { walletAddress, createdAt: new Date(), updatedAt: new Date() } },
+        { status: 200 }
+      );
+    }
+    
     const db = client.db('ripple_mart');
 
     const user = await db.collection('users').findOne({ walletAddress });
