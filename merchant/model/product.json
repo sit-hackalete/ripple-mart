@@ -1,0 +1,13 @@
+{
+  "merchantWalletAddress": "rYourMerchantWalletAddressHere",
+  "name": "Kleenex",
+  "description": "xxx",
+  "price": 7.0,
+  "currency": "RLUSD",
+  "imageUrl": "s3.image.com",
+  "category": "Personal Care",
+  "stock": 100,
+  "isActive": true,
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "updatedAt": "2024-01-15T10:30:00.000Z"
+}

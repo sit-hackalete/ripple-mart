@@ -1,7 +1,13 @@
-'use client';
+"use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import sdk from '@crossmarkio/sdk';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import sdk from "@crossmarkio/sdk";
 
 interface WalletContextType {
   isConnected: boolean;
@@ -15,25 +21,24 @@ interface WalletContextType {
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
+// Type for network from Crossmark SDK
+type NetworkType =
+  | string
+  | { label?: string; type?: string; protocol?: string }
+  | null;
+
 // Helper function to extract network string from network object
-const getNetworkString = (network: unknown): string | null => {
+const getNetworkString = (network: NetworkType): string | null => {
   if (!network) return null;
-  if (typeof network === 'string') return network;
+  if (typeof network === "string") return network;
   // Network object has properties like label, type, etc.
-  if (typeof network === 'object' && network !== null) {
-    const networkObj = network as Record<string, unknown>;
-    return (networkObj.label as string) || 
-           (networkObj.type as string) || 
-           (networkObj.protocol as string) || 
-           null;
-  }
-  return null;
+  return network.label || network.type || network.protocol || null;
 };
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [walletAddress, setWalletAddress] = useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('walletAddress');
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("walletAddress");
     }
     return null;
   });
@@ -55,7 +60,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Check connection status and update state
   const checkConnection = async () => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
     const installed = await checkInstalled();
     if (!installed) {
@@ -68,92 +73,95 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     try {
       // Check if connected
       const connected = await sdk.methods.isConnected();
-      
+
       if (connected && sdk.session) {
         const address = sdk.session.address;
         const currentNetwork = sdk.session.network;
-        
+
         if (address) {
           setWalletAddress(address);
           setIsConnected(true);
-          setNetwork(getNetworkString(currentNetwork));
-          
+          setNetwork(getNetworkString(currentNetwork || null));
+
           // Update localStorage
-          localStorage.setItem('walletAddress', address);
+          localStorage.setItem("walletAddress", address);
         } else {
           setIsConnected(false);
           setWalletAddress(null);
           setNetwork(null);
-          localStorage.removeItem('walletAddress');
+          localStorage.removeItem("walletAddress");
         }
       } else {
         setIsConnected(false);
         setWalletAddress(null);
         setNetwork(null);
-        localStorage.removeItem('walletAddress');
+        localStorage.removeItem("walletAddress");
       }
     } catch (error) {
-      console.error('Error checking wallet connection:', error);
+      console.error("Error checking wallet connection:", error);
       setIsConnected(false);
       setWalletAddress(null);
       setNetwork(null);
-      localStorage.removeItem('walletAddress');
+      localStorage.removeItem("walletAddress");
     }
   };
 
   // Connect to Crossmark wallet
   const connect = async () => {
-    if (typeof window === 'undefined') {
-      alert('Crossmark wallet not available in this environment.');
+    if (typeof window === "undefined") {
+      alert("Crossmark wallet not available in this environment.");
       return;
     }
 
     const installed = await checkInstalled();
     if (!installed) {
-      alert('Crossmark wallet not found. Please install the Crossmark extension from the Chrome/Edge Web Store.');
+      alert(
+        "Crossmark wallet not found. Please install the Crossmark extension from the Chrome/Edge Web Store."
+      );
       return;
     }
 
     try {
       // Sign in using Crossmark SDK
       const { response } = await sdk.methods.signInAndWait();
-      
+
       if (response && response.data && response.data.address) {
         const address = response.data.address;
         const currentNetwork = sdk.session?.network || null;
-        
+
         setWalletAddress(address);
         setIsConnected(true);
         setNetwork(getNetworkString(currentNetwork));
-        
+
         // Update localStorage
-        localStorage.setItem('walletAddress', address);
-        
-        // Save connection to database
+        localStorage.setItem("walletAddress", address);
+
+        // Create or fetch shopper in database (onboarding)
         try {
-          await fetch('/api/merchant/connect', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ walletAddress: address }),
-          });
-        } catch (dbError: unknown) {
-          console.error('Error saving to database:', dbError);
+          await fetch(`/api/users?walletAddress=${address}`);
+        } catch (dbError) {
+          console.error("Error creating shopper:", dbError);
           // Continue even if DB save fails
         }
       }
     } catch (error: unknown) {
-      console.error('Error connecting wallet:', error);
-      
+      console.error("Error connecting wallet:", error);
+
       // User might have rejected the connection
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message.toLowerCase()
+          : String(error).toLowerCase();
       if (
-        errorMessage.toLowerCase().includes('rejected') ||
-        errorMessage.toLowerCase().includes('cancel') ||
-        errorMessage.toLowerCase().includes('denied')
+        errorMessage.includes("rejected") ||
+        errorMessage.includes("cancel") ||
+        errorMessage.includes("denied")
       ) {
-        alert('Wallet connection was cancelled.');
+        alert("Wallet connection was cancelled.");
       } else {
-        alert('Failed to connect wallet. Please make sure Crossmark is installed and try again.');
+        alert(
+          "Failed to connect wallet. Please make sure Crossmark is installed and try again."
+        );
       }
     }
   };
@@ -164,30 +172,28 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setIsConnected(false);
     setWalletAddress(null);
     setNetwork(null);
-    localStorage.removeItem('walletAddress');
+    localStorage.removeItem("walletAddress");
   };
 
   // Initialize and set up event listeners
   useEffect(() => {
-    // Initial check - use setTimeout to avoid calling setState synchronously
-    const initialize = async () => {
-      await checkInstalled();
-      await checkConnection();
-    };
-    void initialize();
-
     // Set up event listeners for Crossmark events
     const handleSignOut = () => {
       setIsConnected(false);
       setWalletAddress(null);
       setNetwork(null);
-      localStorage.removeItem('walletAddress');
+      localStorage.removeItem("walletAddress");
     };
 
-    const handleNetworkChange = (newNetwork: unknown) => {
+    const handleNetworkChange = (
+      newNetwork: NetworkType | { network?: NetworkType }
+    ) => {
       // The network-change event passes the network object directly or wrapped
-      const networkObj = (newNetwork as { network?: unknown })?.network || newNetwork;
-      setNetwork(getNetworkString(networkObj));
+      const networkObj =
+        newNetwork && typeof newNetwork === "object" && "network" in newNetwork
+          ? newNetwork.network || null
+          : (newNetwork as NetworkType);
+      setNetwork(getNetworkString(networkObj || null));
     };
 
     const handleUserChange = () => {
@@ -196,12 +202,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     };
 
     // Register event listeners
-    sdk.on('signout', handleSignOut);
-    sdk.on('network-change', handleNetworkChange);
-    sdk.on('user-change', handleUserChange);
+    sdk.on("signout", handleSignOut);
+    sdk.on("network-change", handleNetworkChange);
+    sdk.on("user-change", handleUserChange);
+
+    // Initial checks - run asynchronously to avoid setState in effect
+    void checkInstalled().then(() => {
+      void checkConnection();
+    });
 
     // Check connection periodically (every 5 seconds)
-    const interval = setInterval(checkConnection, 5000);
+    const interval = setInterval(() => {
+      void checkConnection();
+    }, 5000);
 
     // Cleanup
     return () => {
@@ -232,7 +245,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 export function useWallet() {
   const context = useContext(WalletContext);
   if (context === undefined) {
-    throw new Error('useWallet must be used within a WalletProvider');
+    throw new Error("useWallet must be used within a WalletProvider");
   }
   return context;
 }

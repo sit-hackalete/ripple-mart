@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
-import { useWallet } from '@/contexts/WalletContext';
-import { Product } from '@/types';
+import { useWallet } from '@/lib/wallet-context';
+import { Product } from '@/lib/models';
 
 interface AddToCartButtonProps {
   product: Product;
@@ -11,14 +11,20 @@ interface AddToCartButtonProps {
 
 export default function AddToCartButton({ product }: AddToCartButtonProps) {
   const { addToCart } = useCart();
-  const { isConnected } = useWallet();
+  const { isConnected, connect } = useWallet();
   const [quantity, setQuantity] = useState(1);
   const [showMessage, setShowMessage] = useState(false);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!isConnected) {
-      alert('Please connect your wallet first');
-      return;
+      await connect();
+      // Wait a bit for connection to update
+      await new Promise(resolve => setTimeout(resolve, 500));
+      // If still not connected after trying, show message
+      if (!isConnected) {
+        alert('Please connect your wallet first');
+        return;
+      }
     }
 
     if (product.stock < quantity) {

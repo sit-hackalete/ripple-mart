@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useWallet } from '@/contexts/WalletContext';
+import { useWallet } from '@/lib/wallet-context';
 
 interface UserInfo {
   name?: string;
   email?: string;
   walletAddress: string;
+  totalOrders?: number;
+  totalSpent?: number;
 }
 
 export default function UserWelcome() {
@@ -20,6 +22,7 @@ export default function UserWelcome() {
     } else {
       setUserInfo(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, walletAddress]);
 
   const fetchUserInfo = async () => {
@@ -30,10 +33,11 @@ export default function UserWelcome() {
       const response = await fetch(`/api/users?walletAddress=${walletAddress}`);
       if (response.ok) {
         const data = await response.json();
-        setUserInfo(data.user);
+        // Handle both 'user' and 'shopper' response formats
+        setUserInfo(data.shopper || data.user || { walletAddress });
       }
     } catch (error) {
-      console.error('Error fetching user info:', error);
+      console.error('Error fetching shopper info:', error);
     } finally {
       setIsLoading(false);
     }
@@ -64,6 +68,16 @@ export default function UserWelcome() {
       <p className="mt-2 text-sm text-blue-700 dark:text-blue-300">
         Wallet: {walletAddress.slice(0, 10)}...{walletAddress.slice(-8)}
       </p>
+      {(userInfo?.totalOrders !== undefined || userInfo?.totalSpent !== undefined) && (
+        <div className="mt-4 flex gap-4 text-xs text-blue-600 dark:text-blue-400">
+          {userInfo.totalOrders !== undefined && (
+            <span>Orders: {userInfo.totalOrders}</span>
+          )}
+          {userInfo.totalSpent !== undefined && (
+            <span>Total Spent: {userInfo.totalSpent.toFixed(2)} RLUSD</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

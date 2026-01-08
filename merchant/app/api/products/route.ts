@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
         .toArray();
 
       return NextResponse.json({ products });
-    } catch (dbError) {
+    } catch {
       console.log('Database not available, returning empty products list');
       // Return empty array when database is not set up
       return NextResponse.json({ products: [] });
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         product: { _id: result.insertedId, ...product },
       });
-    } catch (dbError) {
+    } catch {
       console.log('Database not available, cannot save product');
       return NextResponse.json(
         { error: 'Database is not configured. Please set up MongoDB to save products.' },

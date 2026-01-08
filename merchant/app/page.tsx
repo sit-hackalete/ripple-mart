@@ -20,10 +20,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (isConnected && walletAddress) {
-      fetchStats();
+      void fetchStats();
     } else {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, walletAddress]);
 
   const fetchStats = async () => {

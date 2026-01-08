@@ -15,7 +15,7 @@ export async function PUT(
     let db;
     try {
       db = await getDatabase();
-    } catch (dbError) {
+    } catch {
       console.log('Database not available, cannot update product');
       return NextResponse.json(
         { error: 'Database is not configured. Please set up MongoDB to update products.' },
@@ -25,7 +25,16 @@ export async function PUT(
 
     const productsCollection = db.collection('products');
 
-    const updateData: any = {
+    const updateData: {
+      updatedAt: Date;
+      name?: string;
+      description?: string;
+      price?: number;
+      imageUrl?: string;
+      category?: string;
+      stock?: number;
+      isActive?: boolean;
+    } = {
       updatedAt: new Date(),
     };
 
@@ -74,7 +83,7 @@ export async function DELETE(
     let db;
     try {
       db = await getDatabase();
-    } catch (dbError) {
+    } catch {
       console.log('Database not available, cannot delete product');
       return NextResponse.json(
         { error: 'Database is not configured. Please set up MongoDB to delete products.' },
