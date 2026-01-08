@@ -5,7 +5,7 @@ import { useWallet } from '@/lib/wallet-context';
 import { useCart } from '@/contexts/CartContext';
 
 export default function Header() {
-  const { isConnected, walletAddress, connect, disconnect, isInstalled } = useWallet();
+  const { isConnected, walletAddress, connect, disconnect, isInstalled, balance } = useWallet();
   const { getTotalItems } = useCart();
 
   const formatAddress = (address: string) => {
@@ -42,6 +42,11 @@ export default function Header() {
           <div className="flex items-center gap-4">
             {isConnected ? (
               <div className="flex items-center gap-4">
+                {balance !== null && (
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {balance} XRP
+                  </span>
+                )}
                 <span className="text-sm text-gray-600 dark:text-gray-400">
                   {formatAddress(walletAddress!)}
                 </span>
