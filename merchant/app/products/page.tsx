@@ -62,13 +62,18 @@ export default function ProductsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, walletAddress]);
 
-  // Fetch XRP price when modal opens
+  // Fetch XRP price when page loads and keep it updated
+  useEffect(() => {
+    fetchXrpPrice();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchXrpPrice, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch XRP price when modal opens (for immediate update)
   useEffect(() => {
     if (showAddModal) {
       fetchXrpPrice();
-      // Refresh every 30 seconds while modal is open
-      const interval = setInterval(fetchXrpPrice, 30000);
-      return () => clearInterval(interval);
     }
   }, [showAddModal]);
 
@@ -435,10 +440,15 @@ export default function ProductsPage() {
                   <div className="mb-4">
                     <div className="flex items-baseline gap-1.5">
                       <p className="text-lg font-bold text-blue-600 dark:text-blue-500">
-                        {product.price.toFixed(2)}
+                        {xrpPrice ? (product.price / xrpPrice).toFixed(4) : '...'}
                       </p>
-                      <p className="text-xs font-medium text-slate-400">RLUSD</p>
+                      <p className="text-xs font-medium text-slate-400">XRP</p>
                     </div>
+                    {xrpPrice && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        ≈ ${product.price.toFixed(2)} USD
+                      </p>
+                    )}
                   </div>
                   
                   {/* Action Footer */}
@@ -751,7 +761,7 @@ export default function ProductsPage() {
                     {productToDelete.name}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {productToDelete.price.toFixed(2)} RLUSD • {productToDelete.stock} in stock
+                    {xrpPrice ? (productToDelete.price / xrpPrice).toFixed(4) : '...'} XRP • {productToDelete.stock} in stock
                   </p>
                 </div>
               </div>
