@@ -1,68 +1,106 @@
 # Ripple Mart - Merchant Dashboard
 
-An ecommerce platform focused on merchant management, built with Next.js, TypeScript, and MongoDB. Integrated with Crossmark wallet for Ripple token (RLUSD) transactions.
+A modern, professional ecommerce platform for merchants, built with Next.js, TypeScript, and MongoDB. Integrated with Crossmark wallet for Ripple token (RLUSD) transactions.
 
-## Features
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Next.js](https://img.shields.io/badge/Next.js-16-black)
+![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-- 🔐 **Crossmark Wallet Integration** - Connect and manage your wallet using Crossmark
-- 📊 **Merchant Dashboard** - View sales, profit, and business analytics
-- 🛍️ **Product Management** - Add, edit, delete, and manage product listings
-- 💰 **RL-USD Pricing** - All prices displayed in Ripple's stablecoin (RLUSD)
-- 🗄️ **MongoDB Database** - Store merchant and product data
+## ✨ Features
 
-## Getting Started
+- 🔐 **Crossmark Wallet Integration** - Secure wallet connection using Crossmark
+- 📊 **Business Analytics Dashboard** - Real-time sales, revenue, and profit tracking
+- 🛍️ **Product Management** - Full CRUD operations for product catalog
+- 💰 **RLUSD Pricing** - All transactions in Ripple's stablecoin
+- 🗄️ **MongoDB Database** - Scalable cloud or local database storage
+- 🎨 **Modern UI/UX** - Clean, professional design with dark mode support
+- 📱 **Fully Responsive** - Optimized for desktop, tablet, and mobile
+
+## 🚀 Quick Start
 
 ### Prerequisites
 
 - Node.js 18+ and npm
-- MongoDB database (local or MongoDB Atlas)
+- MongoDB Atlas account (or local MongoDB)
 - Crossmark wallet browser extension
 
-### Installation
+### 5-Minute Setup
 
-1. Clone the repository
-2. Install dependencies:
-
+1. **Install dependencies**:
 ```bash
+cd merchant
 npm install
 ```
 
-3. Set up environment variables:
+2. **Set up MongoDB** (see [detailed guide](./docs/MONGODB_SETUP.md)):
+   - Create MongoDB Atlas cluster (or use local MongoDB)
+   - Get connection string
 
-Create a `.env.local` file in the root directory:
+3. **Configure environment**:
+```bash
+# Create .env.local file
+touch .env.local
+```
 
+Add this to `.env.local`:
 ```env
-MONGODB_URI=your_mongodb_connection_string
+MONGODB_URI=mongodb+srv://username:password@cluster.xxxxx.mongodb.net/
 MONGODB_DB_NAME=ripple_mart
 ```
 
-4. Run the development server:
-
+4. **Start development server**:
 ```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser
+5. **Open and test**:
+   - Visit [http://localhost:3000](http://localhost:3000)
+   - Connect your Crossmark wallet
+   - Add your first product!
 
-## Project Structure
+📖 **Need help?** See our [Quick Start Guide](./docs/QUICK_START.md) or [MongoDB Setup Guide](./docs/MONGODB_SETUP.md)
+
+## 📚 Documentation
+
+- 📋 [**Quick Start Guide**](./docs/QUICK_START.md) - Get up and running in 5 minutes
+- 🗄️ [**MongoDB Setup**](./docs/MONGODB_SETUP.md) - Detailed database configuration
+- ✅ [**Setup Checklist**](./docs/CHECKLIST.md) - Step-by-step verification
+- 🎨 [**Style Guide**](./docs/STYLE_GUIDE.md) - UI components and design system
+- 🔄 [**UI Updates**](./docs/UI_UPDATES.md) - Latest design improvements
+
+## 📁 Project Structure
 
 ```
 merchant/
 ├── app/
-│   ├── api/              # API routes
-│   │   ├── merchant/     # Merchant-related endpoints
-│   │   └── products/     # Product CRUD endpoints
-│   ├── products/         # Products management page
-│   ├── layout.tsx        # Root layout with wallet provider
-│   └── page.tsx          # Dashboard page
-├── components/           # React components
-│   ├── Navigation.tsx    # Navigation bar
-│   └── WalletButton.tsx  # Wallet connection button
+│   ├── api/                    # API routes
+│   │   ├── merchant/
+│   │   │   ├── connect/       # Wallet connection
+│   │   │   └── stats/         # Business analytics
+│   │   └── products/
+│   │       ├── [id]/          # Single product operations
+│   │       └── route.ts       # Product listing
+│   ├── products/              # Products management page
+│   ├── layout.tsx             # Root layout with providers
+│   ├── page.tsx               # Dashboard homepage
+│   └── globals.css            # Global styles
+├── components/
+│   ├── Navigation.tsx         # Header navigation
+│   └── WalletButton.tsx       # Wallet connection UI
 ├── lib/
-│   ├── mongodb.ts        # MongoDB connection
-│   ├── models.ts         # TypeScript interfaces
-│   └── wallet-context.tsx # Wallet context provider
-└── package.json
+│   ├── mongodb.ts            # Database connection
+│   ├── models.ts             # TypeScript interfaces
+│   └── wallet-context.tsx    # Wallet state management
+├── docs/                      # Documentation
+│   ├── QUICK_START.md        # 5-min setup guide
+│   ├── MONGODB_SETUP.md      # Database setup
+│   ├── CHECKLIST.md          # Verification checklist
+│   ├── STYLE_GUIDE.md        # UI/UX guidelines
+│   └── UI_UPDATES.md         # Design changelog
+├── .env.local                 # Environment variables (create this)
+├── package.json               # Dependencies
+└── README.md                  # You are here!
 ```
 
 ## Database Models
@@ -128,15 +166,132 @@ The app will automatically create collections on first use. For production:
 2. Set up proper authentication
 3. Configure backup and replication
 
-## Technologies Used
+## 🛠️ Technologies Used
 
 - **Next.js 16** - React framework with App Router
-- **TypeScript** - Type safety
-- **MongoDB** - Database
-- **Tailwind CSS** - Styling
-- **XRPL** - Ripple network integration
-- **Crossmark** - Wallet integration
+- **TypeScript** - Type safety and better DX
+- **MongoDB** - NoSQL database (Atlas or local)
+- **Tailwind CSS** - Utility-first styling
+- **XRPL** - Ripple Ledger integration
+- **Crossmark** - Ripple wallet provider
 
-## License
+## 🎯 Use Cases
 
-MIT
+### For Merchants
+- Manage product catalog
+- Track sales and revenue
+- Monitor business analytics
+- Accept RLUSD payments
+- View transaction history
+
+### For Developers
+- Modern Next.js 16 app architecture
+- MongoDB integration patterns
+- Wallet connection examples
+- Responsive UI components
+- TypeScript best practices
+
+## 🔧 Development
+
+### Available Commands
+
+```bash
+# Development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Start production server
+npm start
+
+# Run linter
+npm run lint
+
+# Type checking
+npm run type-check
+```
+
+### Adding New Features
+
+1. **API Routes**: Create in `app/api/`
+2. **Pages**: Add to `app/` directory
+3. **Components**: Build in `components/`
+4. **Types**: Update `lib/models.ts`
+5. **Styling**: Follow [Style Guide](./docs/STYLE_GUIDE.md)
+
+### Environment Variables
+
+```env
+# Required
+MONGODB_URI=mongodb+srv://...        # MongoDB connection string
+MONGODB_DB_NAME=ripple_mart          # Database name
+
+# Optional
+NODE_ENV=development                  # Environment mode
+PORT=3000                            # Server port
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**MongoDB Connection Failed**
+- Check `.env.local` exists and has correct values
+- Verify MongoDB Atlas cluster is active
+- Ensure IP is whitelisted (0.0.0.0/0 for dev)
+- Restart dev server after changing env vars
+
+**Wallet Won't Connect**
+- Install Crossmark extension
+- Refresh page after installation
+- Check extension is enabled
+- Try different browser if issues persist
+
+**Products Not Saving**
+- Verify wallet is connected
+- Check MongoDB connection is successful
+- Review browser console for errors
+- Confirm user has database write permissions
+
+**Port Already in Use**
+```bash
+# Use different port
+PORT=3001 npm run dev
+```
+
+📖 See [Checklist](./docs/CHECKLIST.md) for complete troubleshooting guide.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## 📄 License
+
+MIT License - see LICENSE file for details
+
+## 🔗 Links
+
+- **MongoDB Atlas**: [mongodb.com/cloud/atlas](https://www.mongodb.com/cloud/atlas)
+- **Crossmark Wallet**: [crossmark.io](https://crossmark.io)
+- **Next.js Docs**: [nextjs.org/docs](https://nextjs.org/docs)
+- **Ripple**: [ripple.com](https://ripple.com)
+
+## 💡 Support
+
+Need help? Check these resources:
+
+1. 📋 [Quick Start Guide](./docs/QUICK_START.md)
+2. 🗄️ [MongoDB Setup Guide](./docs/MONGODB_SETUP.md)
+3. ✅ [Setup Checklist](./docs/CHECKLIST.md)
+4. 🎨 [Style Guide](./docs/STYLE_GUIDE.md)
+
+---
+
+**Built with ❤️ for the Ripple ecosystem**
