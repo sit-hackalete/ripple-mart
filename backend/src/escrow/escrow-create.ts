@@ -1,7 +1,7 @@
 import color from "colors"
 import { EscrowCreate } from "xrpl"
-import { getXrplClient } from "../../client"
-import { TransactionPropsForSingleSign } from "../../models"
+import { getXrplClient } from "../client"
+import { TransactionPropsForSingleSign } from "../models"
 
 const client = getXrplClient()
 
@@ -21,9 +21,9 @@ export const createEscrow = async ({
   console.log()
 
   const transaction: EscrowCreate = {
+    ...txn,
     Account: wallet.address,
     TransactionType: "EscrowCreate",
-    ...txn,
   }
  
   // Sign and submit to XRPL

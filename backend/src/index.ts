@@ -15,34 +15,31 @@ const xrplClient = getXrplClient()
 const main = async () => {
   await xrplClient.connect()
 
-  // // Time based escrow
+//   // Time based escrow
 
-  // // we can claim the funds from wallet 2 after 15 seconds
-  // const finishAfter = dayjs().add(15, "seconds").toISOString()
-  // // we cannot claim funds from the escrow after 5 minutes
-  // const cancelAfter = dayjs().add(5, "minutes").toISOString()
+//   // we cannot claim funds from the escrow after 5 minutes
+//   const cancelAfter = dayjs().add(5, "minutes").toISOString()
 
-  // const { condition, fulfillment } = generateConditionAndFulfillment()
-  // console.log("Condition:", condition)
-  // console.log("Fulfillment:", fulfillment)
+//   const { condition, fulfillment } = generateConditionAndFulfillment()
+//   console.log("Condition:", condition)
+//   console.log("Fulfillment:", fulfillment)
 
-  // await createEscrow({
-  //   txn: {
-  //     Amount: xrpToDrops(1),
-  //     Condition: condition,
-  //     // FinishAfter: isoTimeToRippleTime(finishAfter),
-  //     Destination: WALLET_2.address,
-  //     CancelAfter: isoTimeToRippleTime(cancelAfter),
-  //   },
-  //   wallet: WALLET_1,
-  // })
+//   await createEscrow({
+//     txn: {
+//       Amount: xrpToDrops(1),
+//       Condition: condition,
+//       Destination: WALLET_2.address,
+//       CancelAfter: isoTimeToRippleTime(cancelAfter),
+//     },
+//     wallet: WALLET_1,
+//   })
 
   await finishEscrow({
     txn: {
-      OfferSequence: 13800743,
+      OfferSequence: 13800746,
       Owner: WALLET_1.address,
-      Fulfillment: "A0228020192BFF3F9AACAC417C812E0C0D62AA45CA41C5184D9F89B7E0B7D413FABCE9D8",
-      Condition: "A02580209281BDD5D27022880EA954AE1C21E663E5102DCC0A29B55CFD173A560072F133810120"
+      Fulfillment: "A022802075DFCF50B3FEAA53B5519601ACB8ABB915445663325D914D71D0FBAC7EB67E15",
+      Condition: "A0258020092F5ABC77D5728D0D0EEDD0415C3AEC7AB5B53543A1D9CD01AD0CB668D698E4810120"
     },
     wallet: WALLET_2,
   })
