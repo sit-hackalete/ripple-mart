@@ -389,3 +389,4 @@ When adding new colors, follow this pattern:
 
 **💡 Tip:** Use browser DevTools color picker to verify exact colors in the built application!
 
+

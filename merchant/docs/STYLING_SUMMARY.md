@@ -348,3 +348,4 @@ The Merchant Dashboard now perfectly matches the "Soft Fintech Minimalism" desig
 
 **The dashboard is production-ready and consistent with your frontend design language!**
 
+

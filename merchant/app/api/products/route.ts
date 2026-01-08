@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
-    const { merchantWalletAddress, name, description, price, imageUrl, category, stock } = data;
+    const { merchantWalletAddress, name, description, price, images, imageUrl, category, stock } = data;
 
     if (!merchantWalletAddress || !name || !description || price === undefined || stock === undefined) {
       return NextResponse.json(
@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
         name,
         description,
         price: parseFloat(price),
+        images: images || [],
         imageUrl: imageUrl || '',
         category: category || 'General',
         stock: parseInt(stock),

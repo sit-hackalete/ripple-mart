@@ -9,7 +9,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const data = await request.json();
-    const { name, description, price, imageUrl, category, stock, isActive } = data;
+    const { name, description, price, images, imageUrl, category, stock, isActive } = data;
 
     // Try to get database, but return error if not available
     let db;
@@ -30,6 +30,7 @@ export async function PUT(
       name?: string;
       description?: string;
       price?: number;
+      images?: string[];
       imageUrl?: string;
       category?: string;
       stock?: number;
@@ -41,6 +42,7 @@ export async function PUT(
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
     if (price !== undefined) updateData.price = parseFloat(price);
+    if (images !== undefined) updateData.images = images;
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
     if (category !== undefined) updateData.category = category;
     if (stock !== undefined) updateData.stock = parseInt(stock);
@@ -93,20 +95,22 @@ export async function DELETE(
 
     const productsCollection = db.collection('products');
 
-    // Soft delete by setting isActive to false
-    const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id) },
-      { $set: { isActive: false, updatedAt: new Date() } }
-    );
+    // Hard delete - permanently remove from MongoDB
+    const result = await productsCollection.deleteOne({
+      _id: new ObjectId(id)
+    });
 
-    if (result.matchedCount === 0) {
+    if (result.deletedCount === 0) {
       return NextResponse.json(
         { error: 'Product not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Product permanently deleted from database' 
+    });
   } catch (error) {
     console.error('Error deleting product:', error);
     return NextResponse.json(
