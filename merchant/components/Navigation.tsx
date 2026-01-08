@@ -41,7 +41,11 @@ export default function Navigation() {
       }, 30000);
       return () => clearInterval(interval);
     } else {
-      setProfit(null);
+      // Use setTimeout to avoid synchronous setState in effect
+      const timeoutId = setTimeout(() => {
+        setProfit(null);
+      }, 0);
+      return () => clearTimeout(timeoutId);
     }
   }, [isConnected, walletAddress]);
 

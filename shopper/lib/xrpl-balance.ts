@@ -36,8 +36,8 @@ export async function fetchXRPBalance(walletAddress: string, network?: string | 
   console.log(`Network: ${network || 'unknown'}, Detected: ${isTestnet ? 'TESTNET' : 'MAINNET'}, Address: ${walletAddress}`);
   
   // Try the detected network first
-  let endpoints = isTestnet ? TESTNET_ENDPOINTS : MAINNET_ENDPOINTS;
-  let currentNetwork = isTestnet ? 'TESTNET' : 'MAINNET';
+  const endpoints = isTestnet ? TESTNET_ENDPOINTS : MAINNET_ENDPOINTS;
+  const currentNetwork = isTestnet ? 'TESTNET' : 'MAINNET';
 
   // Try multiple endpoints in case one fails
   for (const endpoint of endpoints) {
@@ -139,7 +139,7 @@ export async function fetchXRPBalance(walletAddress: string, network?: string | 
             }
           }
         }
-      } catch (error) {
+      } catch {
         continue;
       }
     }

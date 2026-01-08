@@ -18,8 +18,9 @@ export default function WalletModal({ isOpen, onClose, walletAddress, xrpBalance
 
   useEffect(() => {
     if (isOpen && walletAddress) {
-      fetchTransactions();
+      void fetchTransactions();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, walletAddress]);
 
   const fetchTransactions = async () => {
