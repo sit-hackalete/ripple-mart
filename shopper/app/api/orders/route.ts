@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
         {
           stage: "order_placed" as const,
           timestamp: now,
+          location: "Order confirmed",
         },
       ],
       estimatedDeliveryDate: new Date(now.getTime() + 72 * 60 * 60 * 1000), // 3 days from now

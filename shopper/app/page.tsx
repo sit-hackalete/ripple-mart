@@ -51,8 +51,8 @@ export default async function Home() {
   const categories = await getCategories();
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900">
+      <div className="container mx-auto px-4 py-6">
         {/* Hero Section */}
         <HeroSection />
 

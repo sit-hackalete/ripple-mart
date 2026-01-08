@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Order, DeliveryStage } from '@/lib/models';
+import { Order, DeliveryStage, DeliveryStatus } from '@/lib/models';
+import DeliveryConfirmationModal from '@/components/DeliveryConfirmationModal';
+import OrderFeedbackForm from '@/components/OrderFeedbackForm';
 
 interface DeliveryTrackingModalProps {
   isOpen: boolean;
@@ -9,19 +11,23 @@ interface DeliveryTrackingModalProps {
   walletAddress: string | null;
 }
 
-const DELIVERY_STAGES: { key: DeliveryStage; label: string; icon: string }[] = [
-  { key: 'order_placed', label: 'Order Placed', icon: '📦' },
-  { key: 'order_shipped', label: 'Order Shipped', icon: '🚚' },
-  { key: 'in_transit', label: 'In Transit', icon: '✈️' },
-  { key: 'at_sorting_facility', label: 'At Sorting Facility', icon: '🏭' },
-  { key: 'out_for_delivery', label: 'Out for Delivery', icon: '🚗' },
-  { key: 'delivered', label: 'Delivered', icon: '✅' },
+const DELIVERY_STAGES: { key: DeliveryStage; label: string; icon: string; description?: string }[] = [
+  { key: 'order_placed', label: 'Order Placed', icon: '📦', description: 'Your order has been confirmed' },
+  { key: 'order_shipped', label: 'Order Shipped', icon: '🚚', description: 'Shipped from seller' },
+  { key: 'on_freight', label: 'On Freight', icon: '✈️', description: 'In transit via plane or ship' },
+  { key: 'arrived_singapore', label: 'Arrived in Singapore', icon: '🇸🇬', description: 'Package has arrived in Singapore' },
+  { key: 'at_sorting_facility', label: 'At Sorting Facility', icon: '🏭', description: 'Being sorted for delivery' },
+  { key: 'out_for_delivery', label: 'Out for Delivery', icon: '🚗', description: 'On the way to you' },
+  { key: 'delivered', label: 'Delivered', icon: '✅', description: 'Item has been delivered' },
 ];
 
 export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }: DeliveryTrackingModalProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [orderForConfirmation, setOrderForConfirmation] = useState<Order | null>(null);
 
   useEffect(() => {
     if (isOpen && walletAddress) {
@@ -42,7 +48,64 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
         const ordersWithTracking = data.orders || [];
         // Update delivery stages automatically
         const updatedOrders = ordersWithTracking.map((order: Order) => updateDeliveryStage(order));
+        
+        // Check for auto-confirmation (7 days after delivery)
+        for (const order of updatedOrders) {
+          if (order.currentDeliveryStage === 'delivered' && 
+              !order.deliveryConfirmation?.confirmed && 
+              !order.deliveryConfirmation?.autoConfirmed) {
+            const deliveredStatus = order.deliveryTracking?.find((t: DeliveryStatus) => t.stage === 'delivered');
+            if (deliveredStatus?.timestamp) {
+              const deliveredDate = new Date(deliveredStatus.timestamp);
+              const now = new Date();
+              const diffTime = Math.abs(now.getTime() - deliveredDate.getTime());
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              
+              if (diffDays >= 7) {
+                await handleAutoConfirm(order);
+              }
+            }
+          }
+        }
+        
+        // Refresh orders after auto-confirmation
+        if (updatedOrders.some((o: Order) => o.currentDeliveryStage === 'delivered' && !o.deliveryConfirmation?.confirmed)) {
+          const refreshResponse = await fetch(`/api/orders?walletAddress=${walletAddress}`);
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            const refreshedOrders = (refreshData.orders || []).map((order: Order) => updateDeliveryStage(order));
+            setOrders(refreshedOrders);
+            
+            // Check for delivered orders that need confirmation
+            const deliveredOrder = refreshedOrders.find((o: Order) => 
+              o.currentDeliveryStage === 'delivered' && 
+              !o.deliveryConfirmation?.confirmed && 
+              !o.deliveryConfirmation?.autoConfirmed &&
+              !showConfirmation
+            );
+            
+            if (deliveredOrder && !orderForConfirmation) {
+              setOrderForConfirmation(deliveredOrder);
+              setShowConfirmation(true);
+            }
+            return;
+          }
+        }
+        
         setOrders(updatedOrders);
+        
+        // Check for delivered orders that need confirmation
+        const deliveredOrder = updatedOrders.find((o: Order) => 
+          o.currentDeliveryStage === 'delivered' && 
+          !o.deliveryConfirmation?.confirmed && 
+          !o.deliveryConfirmation?.autoConfirmed &&
+          !showConfirmation
+        );
+        
+        if (deliveredOrder && !orderForConfirmation) {
+          setOrderForConfirmation(deliveredOrder);
+          setShowConfirmation(true);
+        }
         
         // Auto-select first active order if none selected
         if (!selectedOrder && updatedOrders.length > 0) {
@@ -64,7 +127,27 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
   };
 
   const updateDeliveryStage = (order: Order): Order => {
-    if (!order.createdAt || order.status === 'cancelled' || order.currentDeliveryStage === 'delivered') {
+    if (!order.createdAt || order.status === 'cancelled') {
+      return order;
+    }
+
+    // Check if already delivered
+    if (order.currentDeliveryStage === 'delivered') {
+      // Check if delivered and show confirmation if needed
+      if (!order.deliveryConfirmation?.confirmed && !order.deliveryConfirmation?.autoConfirmed) {
+        const deliveredStatus = order.deliveryTracking?.find(t => t.stage === 'delivered');
+        if (deliveredStatus?.timestamp) {
+          const deliveredDate = new Date(deliveredStatus.timestamp);
+          const now = new Date();
+          const diffTime = Math.abs(now.getTime() - deliveredDate.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          // Auto-confirm after 7 days
+          if (diffDays >= 7 && !order.deliveryConfirmation?.autoConfirmed) {
+            // Will be handled in fetchOrders
+          }
+        }
+      }
       return order;
     }
 
@@ -77,8 +160,9 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
     
     if (hoursSinceOrder >= 0) currentStage = 'order_placed';
     if (hoursSinceOrder >= 2) currentStage = 'order_shipped';
-    if (hoursSinceOrder >= 8) currentStage = 'in_transit';
-    if (hoursSinceOrder >= 24) currentStage = 'at_sorting_facility';
+    if (hoursSinceOrder >= 8) currentStage = 'on_freight';
+    if (hoursSinceOrder >= 24) currentStage = 'arrived_singapore';
+    if (hoursSinceOrder >= 36) currentStage = 'at_sorting_facility';
     if (hoursSinceOrder >= 48) currentStage = 'out_for_delivery';
     if (hoursSinceOrder >= 72) currentStage = 'delivered';
 
@@ -117,6 +201,60 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
       fetchOrders();
     } catch (error) {
       console.error('Error updating delivery stage:', error);
+    }
+  };
+
+  const handleConfirmDelivery = async (orderId: string, confirmed: boolean) => {
+    try {
+      const response = await fetch(`/api/orders/${orderId}/confirm`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmed, notDelivered: !confirmed }),
+      });
+      
+      if (response.ok) {
+        await fetchOrders();
+        if (confirmed) {
+          setShowConfirmation(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error confirming delivery:', error);
+      throw error;
+    }
+  };
+
+  const handleAutoConfirm = async (order: Order) => {
+    if (!order._id) return;
+    try {
+      await handleConfirmDelivery(order._id, true);
+      // Mark as auto-confirmed
+      await fetch(`/api/orders/${order._id}/confirm`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmed: true, autoConfirmed: true }),
+      });
+      await fetchOrders();
+    } catch (error) {
+      console.error('Error auto-confirming:', error);
+    }
+  };
+
+  const handleSubmitFeedback = async (orderId: string, rating: number, comment: string) => {
+    try {
+      const response = await fetch(`/api/orders/${orderId}/feedback`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating, comment }),
+      });
+      
+      if (response.ok) {
+        await fetchOrders();
+        setShowFeedback(false);
+      }
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      throw error;
     }
   };
 
@@ -359,6 +497,36 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
           )}
         </div>
       </div>
+
+      {/* Delivery Confirmation Modal */}
+      {orderForConfirmation && (
+        <DeliveryConfirmationModal
+          isOpen={showConfirmation}
+          onClose={() => {
+            setShowConfirmation(false);
+            setOrderForConfirmation(null);
+          }}
+          order={orderForConfirmation}
+          onConfirm={handleConfirmDelivery}
+          onShowFeedback={(order) => {
+            setOrderForConfirmation(order);
+            setShowFeedback(true);
+          }}
+        />
+      )}
+
+      {/* Feedback Form */}
+      {orderForConfirmation && (
+        <OrderFeedbackForm
+          isOpen={showFeedback}
+          onClose={() => {
+            setShowFeedback(false);
+            setOrderForConfirmation(null);
+          }}
+          order={orderForConfirmation}
+          onSubmit={handleSubmitFeedback}
+        />
+      )}
     </div>
   );
 }

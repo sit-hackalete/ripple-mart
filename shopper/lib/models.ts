@@ -46,10 +46,25 @@ export interface CartItem {
 export type DeliveryStage = 
   | "order_placed"
   | "order_shipped"
-  | "in_transit"
+  | "on_freight"
+  | "arrived_singapore"
   | "at_sorting_facility"
   | "out_for_delivery"
   | "delivered";
+
+export interface DeliveryConfirmation {
+  confirmed: boolean;
+  confirmedAt?: Date;
+  notDelivered?: boolean;
+  autoConfirmed?: boolean;
+  autoConfirmedAt?: Date;
+}
+
+export interface OrderFeedback {
+  rating: number; // 1-5 stars
+  comment?: string;
+  submittedAt?: Date;
+}
 
 export interface DeliveryStatus {
   stage: DeliveryStage;
@@ -69,6 +84,8 @@ export interface Order {
   deliveryTracking?: DeliveryStatus[];
   currentDeliveryStage?: DeliveryStage;
   estimatedDeliveryDate?: Date;
+  deliveryConfirmation?: DeliveryConfirmation;
+  feedback?: OrderFeedback;
 }
 
 // Keep User for backward compatibility (type alias)
