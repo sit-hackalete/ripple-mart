@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ balance: balanceInXRP }, { status: 200 });
         }
 
-      } catch (error) {
+      } catch {
         // Continue to next endpoint
         continue;
       }
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ balance }, { status: 200 });
           }
         }
-      } catch (error) {
+      } catch {
         // Try altnet API
         try {
           const altnetResponse = await fetch(`https://api.altnet.rippletest.net/v1/accounts/${walletAddress}`);
@@ -175,7 +175,7 @@ export async function GET(request: NextRequest) {
               }
             }
           }
-        } catch (error) {
+        } catch {
           continue;
         }
       }

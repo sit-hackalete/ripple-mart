@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 export default function ProductsPage() {
-  const { isConnected, walletAddress, isInitializing } = useWallet();
+  const { isConnected, walletAddress } = useWallet();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -151,8 +151,8 @@ export default function ProductsPage() {
     }
   };
 
-  // Show loading screen while wallet is initializing
-  if (isInitializing) {
+  // Show loading screen while products are loading
+  if (loading) {
     return (
       <div className="container mx-auto px-6 py-20">
         <div className="max-w-2xl mx-auto text-center">
@@ -165,7 +165,7 @@ export default function ProductsPage() {
               </div>
             </div>
             <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-3 tracking-tight">
-              Connecting Wallet
+              Loading Products
             </h2>
             <p className="text-base text-slate-600 dark:text-slate-400 mb-6">
               Please wait while we establish your connection...

@@ -40,7 +40,7 @@ function TrackingContent() {
       // Refresh status
       const data = await oracleApi.getStatusByDbId(dbId!);
       setStatus(data);
-    } catch (err) {
+    } catch {
       alert('Confirmation failed. Please try again.');
     } finally {
       setConfirming(false);
@@ -89,7 +89,7 @@ function TrackingContent() {
 
           <div className="rounded-md bg-white p-4 shadow-sm dark:bg-gray-900">
             <p className="text-sm italic text-gray-600 dark:text-gray-400">
-              "{status.journey.message}"
+              &ldquo;{status.journey.message}&rdquo;
             </p>
             {status.secondsToNextStage > 0 && (
               <p className="mt-2 text-xs font-medium text-orange-600">

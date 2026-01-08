@@ -12,7 +12,6 @@ export default function Header() {
     isConnected,
     walletAddress,
     connect,
-    disconnect,
     isInstalled,
     balance,
     refreshBalance,
