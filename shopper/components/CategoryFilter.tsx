@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { Suspense } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 
 interface CategoryFilterProps {
@@ -11,21 +11,10 @@ function CategoryFilterContent({ categories }: CategoryFilterProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [selectedCategory, setSelectedCategory] = useState<string>(
-    searchParams.get('category') || 'All'
-  );
-
-  useEffect(() => {
-    const category = searchParams.get('category');
-    if (category) {
-      setSelectedCategory(category);
-    } else {
-      setSelectedCategory('All');
-    }
-  }, [searchParams]);
+  // Derive selected category directly from searchParams instead of using state + effect
+  const selectedCategory = searchParams.get('category') || 'All';
 
   const handleCategoryChange = (category: string) => {
-    setSelectedCategory(category);
     const params = new URLSearchParams(searchParams.toString());
     
     if (category === 'All') {

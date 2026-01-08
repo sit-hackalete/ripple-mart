@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import sdk from '@crossmarkio/sdk';
+import { oracleApi } from '@/lib/oracle';
+import { isoTimeToRippleTime } from 'xrpl';
 
 export default function CheckoutPage() {
   const { items, getTotalPrice, clearCart } = useCart();
@@ -50,25 +52,40 @@ export default function CheckoutPage() {
 
       const total = getTotalPrice();
       
-      // Fetch merchant wallet address from API
-      const configResponse = await fetch('/api/config');
-      const config = await configResponse.json();
-      const merchantAddress = config.merchantAddress || 'rXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
+      // --- GET MERCHANT ADDRESS FROM CART ---
+      // We must use the real address from the product in MongoDB
+      const merchantAddress = items[0]?.product.merchantWalletAddress;
       
-      // Convert RLUSD to drops (1 XRP = 1,000,000 drops)
-      // For simplicity, treating RLUSD value as XRP equivalent
+      console.log('DEBUG: Merchant Address from Cart:', merchantAddress);
+
+      if (!merchantAddress || merchantAddress.startsWith('rX') || merchantAddress.length < 25) {
+        throw new Error(`Invalid merchant address found: "${merchantAddress}". Please ensure the product in your database has a valid XRPL wallet address.`);
+      }
+      
+      // Calculate CancelAfter (e.g., 5 minutes from now for testing)
+      const cancelAfterDate = new Date();
+      cancelAfterDate.setMinutes(cancelAfterDate.getMinutes() + 5);
+      const cancelAfterRipple = isoTimeToRippleTime(cancelAfterDate.toISOString());
+
+      // --- STEP 1: PREPARE WITH ORACLE ---
       const amountInDrops = Math.floor(total * 1000000).toString();
-      
-      // Sign and submit payment transaction
-      const { response } = await sdk.methods.signAndSubmitAndWait({
-        TransactionType: 'Payment',
-        Account: walletAddress,
-        Destination: merchantAddress,
-        Amount: amountInDrops, // Amount in drops
+      const prepared = await oracleApi.prepare({
+        buyerAddress: walletAddress,
+        sellerAddress: merchantAddress,
+        amount: amountInDrops,
+        cancelAfter: cancelAfterRipple
       });
 
-      // Get transaction hash from response
-      // Crossmark response structure: response.data.resp.result.hash
+      // --- STEP 2: CREATE ESCROW ON LEDGER ---
+      const { response } = await sdk.methods.signAndSubmitAndWait({
+        TransactionType: 'EscrowCreate',
+        Destination: merchantAddress,
+        Amount: amountInDrops,
+        Condition: prepared.condition,
+        CancelAfter: cancelAfterRipple,
+      });
+
+      // Crossmark response structure check
       type RespType = { hash?: string; result?: { hash?: string } };
       const resp = response.data.resp as RespType;
       const transactionHash = resp?.hash || resp?.result?.hash;
@@ -77,7 +94,7 @@ export default function CheckoutPage() {
         throw new Error('Transaction failed or was cancelled');
       }
 
-      // Save order to database
+      // Save order to your local shopper database (optional but good for history)
       const orderResponse = await fetch('/api/orders', {
         method: 'POST',
         headers: {
@@ -88,14 +105,16 @@ export default function CheckoutPage() {
           items,
           total: getTotalPrice(),
           transactionHash,
+          oracleDbId: prepared.dbId // Store this so we can track the simulation
         }),
       });
 
       if (orderResponse.ok) {
         clearCart();
-        router.push('/checkout/success');
+        // Pass the dbId to the success page for tracking
+        router.push(`/checkout/success?id=${prepared.dbId}`);
       } else {
-        throw new Error('Failed to create order');
+        throw new Error('Failed to create local order');
       }
     } catch (err: unknown) {
       console.error('Checkout error:', err);

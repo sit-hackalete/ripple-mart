@@ -2,7 +2,7 @@ import { Client, Wallet, EscrowFinish, EscrowCancel } from "xrpl"
 import "dotenv/config"
 
 const XRPL_NODE = process.env.XRPL_NODE || "wss://s.altnet.rippletest.net:51233"
-const ORACLE_SEED = process.env.SEED_1 // Reusing SEED_1 as the Oracle wallet seed
+const ORACLE_SEED = process.env.ORACLE_SEED || process.env.SEED_1
 
 let client: Client
 
@@ -30,8 +30,9 @@ export const submitEscrowFinish = async (
   fulfillment: string,
   condition: string
 ) => {
+  if (!ORACLE_SEED) throw new Error("ORACLE_SEED not found in .env")
   const xrplClient = await getClient()
-  const wallet = Wallet.fromSeed(ORACLE_SEED!)
+  const wallet = Wallet.fromSeed(ORACLE_SEED)
 
   const transaction: EscrowFinish = {
     TransactionType: "EscrowFinish",
@@ -57,8 +58,9 @@ export const submitEscrowCancel = async (
   owner: string,
   offerSequence: number
 ) => {
+  if (!ORACLE_SEED) throw new Error("ORACLE_SEED not found in .env")
   const xrplClient = await getClient()
-  const wallet = Wallet.fromSeed(ORACLE_SEED!)
+  const wallet = Wallet.fromSeed(ORACLE_SEED)
 
   const transaction: EscrowCancel = {
     TransactionType: "EscrowCancel",

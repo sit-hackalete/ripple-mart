@@ -24,7 +24,7 @@ const LogSchema: Schema = new Schema({
     required: true 
   },
   timestamp: { type: Date, default: Date.now }
-})
+}, { collection: 'logs' })
 
 export default mongoose.model<ILog>("Log", LogSchema)
 
