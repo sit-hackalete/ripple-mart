@@ -32,10 +32,10 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
   useEffect(() => {
     if (isOpen && walletAddress) {
       void fetchOrders();
-      // Poll for updates every 30 seconds
+      // Poll for updates every 10 seconds to see progress faster
       const interval = setInterval(() => {
         void fetchOrders();
-      }, 30000);
+      }, 10000);
       return () => clearInterval(interval);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -134,11 +134,14 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
       return order;
     }
 
-    // Check if already delivered
-    if (order.currentDeliveryStage === 'delivered') {
+    // If order already has all tracking stages with timestamps, preserve them
+    // This ensures the realistic fake timestamps from the backend are maintained
+    if (order.deliveryTracking && order.deliveryTracking.length >= 7) {
       // Check if delivered and show confirmation if needed
-      if (!order.deliveryConfirmation?.confirmed && !order.deliveryConfirmation?.autoConfirmed) {
-        const deliveredStatus = order.deliveryTracking?.find(t => t.stage === 'delivered');
+      if (order.currentDeliveryStage === 'delivered' && 
+          !order.deliveryConfirmation?.confirmed && 
+          !order.deliveryConfirmation?.autoConfirmed) {
+        const deliveredStatus = order.deliveryTracking.find((t: DeliveryStatus) => t.stage === 'delivered');
         if (deliveredStatus?.timestamp) {
           const deliveredDate = new Date(deliveredStatus.timestamp);
           const now = new Date();
@@ -154,35 +157,124 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
       return order;
     }
 
+    // For orders without full tracking, ensure they show as delivered with realistic timestamps
     const now = new Date();
     const orderDate = new Date(order.createdAt);
     const hoursSinceOrder = (now.getTime() - orderDate.getTime()) / (1000 * 60 * 60);
 
-    // Auto-progress stages based on time (simulating delivery progression)
-    let currentStage: DeliveryStage = order.currentDeliveryStage || 'order_placed';
-    
-    if (hoursSinceOrder >= 0) currentStage = 'order_placed';
-    if (hoursSinceOrder >= 2) currentStage = 'order_shipped';
-    if (hoursSinceOrder >= 8) currentStage = 'on_freight';
-    if (hoursSinceOrder >= 24) currentStage = 'arrived_singapore';
-    if (hoursSinceOrder >= 36) currentStage = 'at_sorting_facility';
-    if (hoursSinceOrder >= 48) currentStage = 'out_for_delivery';
-    if (hoursSinceOrder >= 72) currentStage = 'delivered';
+    // If order is older than 72 hours, mark as delivered with realistic timestamps
+    if (hoursSinceOrder >= 72 && order.currentDeliveryStage !== 'delivered') {
+      const orderPlacedTime = new Date(orderDate);
+      const orderShippedTime = new Date(orderDate.getTime() + 2 * 60 * 60 * 1000);
+      const onFreightTime = new Date(orderDate.getTime() + 8 * 60 * 60 * 1000);
+      const arrivedSingaporeTime = new Date(orderDate.getTime() + 24 * 60 * 60 * 1000);
+      const atSortingTime = new Date(orderDate.getTime() + 36 * 60 * 60 * 1000);
+      const outForDeliveryTime = new Date(orderDate.getTime() + 48 * 60 * 60 * 1000);
+      const deliveredTime = new Date(orderDate.getTime() + 60 * 60 * 60 * 1000);
 
-    // If stage changed, update tracking
-    if (currentStage !== order.currentDeliveryStage) {
-      const newTracking = order.deliveryTracking || [];
-      const stageExists = newTracking.some(t => t.stage === currentStage);
-      
-      if (!stageExists) {
-        newTracking.push({
-          stage: currentStage,
-          timestamp: new Date(),
-        });
-        
-        // Update order in backend
-        updateOrderDeliveryStage(order._id!, currentStage, newTracking);
-      }
+      const fullTracking = [
+        { stage: 'order_placed' as const, timestamp: orderPlacedTime, location: 'Order confirmed' },
+        { stage: 'order_shipped' as const, timestamp: orderShippedTime, location: 'Shipped from seller warehouse' },
+        { stage: 'on_freight' as const, timestamp: onFreightTime, location: 'In transit via air freight' },
+        { stage: 'arrived_singapore' as const, timestamp: arrivedSingaporeTime, location: 'Changi Airport, Singapore' },
+        { stage: 'at_sorting_facility' as const, timestamp: atSortingTime, location: 'Singapore Sorting Facility' },
+        { stage: 'out_for_delivery' as const, timestamp: outForDeliveryTime, location: 'Out for delivery' },
+        { stage: 'delivered' as const, timestamp: deliveredTime, location: 'Delivered to recipient' },
+      ];
+
+      // Update order in backend
+      updateOrderDeliveryStage(order._id!, 'delivered', fullTracking);
+
+      return {
+        ...order,
+        currentDeliveryStage: 'delivered',
+        deliveryTracking: fullTracking,
+        status: 'completed',
+      };
+    }
+
+    // For newer orders, use progressive stages with SPEEDED UP timing (minutes instead of hours)
+    // This makes it progress faster so users can see it step by step
+    const minutesSinceOrder = hoursSinceOrder * 60;
+    
+    let currentStage: DeliveryStage = order.currentDeliveryStage || 'order_placed';
+    const tracking = order.deliveryTracking || [];
+    
+    // Progressive stages with realistic timestamps (sped up for demo)
+    // Stage 1: Order Placed (immediate)
+    if (minutesSinceOrder >= 0 && !tracking.some(t => t.stage === 'order_placed')) {
+      tracking.push({
+        stage: 'order_placed',
+        timestamp: orderDate,
+        location: 'Order confirmed',
+      });
+      currentStage = 'order_placed';
+    }
+    
+    // Stage 2: Order Shipped (5 minutes later)
+    if (minutesSinceOrder >= 5 && !tracking.some(t => t.stage === 'order_shipped')) {
+      tracking.push({
+        stage: 'order_shipped',
+        timestamp: new Date(orderDate.getTime() + 5 * 60 * 1000),
+        location: 'Shipped from seller warehouse',
+      });
+      currentStage = 'order_shipped';
+    }
+    
+    // Stage 3: On Freight (15 minutes later)
+    if (minutesSinceOrder >= 15 && !tracking.some(t => t.stage === 'on_freight')) {
+      tracking.push({
+        stage: 'on_freight',
+        timestamp: new Date(orderDate.getTime() + 15 * 60 * 1000),
+        location: 'In transit via air freight',
+      });
+      currentStage = 'on_freight';
+    }
+    
+    // Stage 4: Arrived Singapore (30 minutes later)
+    if (minutesSinceOrder >= 30 && !tracking.some(t => t.stage === 'arrived_singapore')) {
+      tracking.push({
+        stage: 'arrived_singapore',
+        timestamp: new Date(orderDate.getTime() + 30 * 60 * 1000),
+        location: 'Changi Airport, Singapore',
+      });
+      currentStage = 'arrived_singapore';
+    }
+    
+    // Stage 5: At Sorting Facility (45 minutes later)
+    if (minutesSinceOrder >= 45 && !tracking.some(t => t.stage === 'at_sorting_facility')) {
+      tracking.push({
+        stage: 'at_sorting_facility',
+        timestamp: new Date(orderDate.getTime() + 45 * 60 * 1000),
+        location: 'Singapore Sorting Facility',
+      });
+      currentStage = 'at_sorting_facility';
+    }
+    
+    // Stage 6: Out for Delivery (60 minutes later)
+    if (minutesSinceOrder >= 60 && !tracking.some(t => t.stage === 'out_for_delivery')) {
+      tracking.push({
+        stage: 'out_for_delivery',
+        timestamp: new Date(orderDate.getTime() + 60 * 60 * 1000),
+        location: 'Out for delivery',
+      });
+      currentStage = 'out_for_delivery';
+    }
+    
+    // Stage 7: Delivered (75 minutes later)
+    if (minutesSinceOrder >= 75 && !tracking.some(t => t.stage === 'delivered')) {
+      tracking.push({
+        stage: 'delivered',
+        timestamp: new Date(orderDate.getTime() + 75 * 60 * 1000),
+        location: 'Delivered to recipient',
+      });
+      currentStage = 'delivered';
+    }
+
+    // If stage changed or new tracking added, update in backend
+    if (currentStage !== order.currentDeliveryStage || tracking.length > (order.deliveryTracking?.length || 0)) {
+      // Update order in backend
+      updateOrderDeliveryStage(order._id!, currentStage, tracking);
     }
 
     return {
@@ -192,7 +284,7 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
     };
   };
 
-  const updateOrderDeliveryStage = async (orderId: string | undefined, stage: DeliveryStage, tracking: Array<{ stage: DeliveryStage; timestamp: Date }>) => {
+  const updateOrderDeliveryStage = async (orderId: string | undefined, stage: DeliveryStage, tracking: Array<{ stage: DeliveryStage; timestamp: Date | string; location?: string }>) => {
     if (!orderId) return;
     try {
       await fetch(`/api/orders/${orderId}/tracking`, {
@@ -354,7 +446,7 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
                               Order #{order._id?.slice(-8).toUpperCase()}
                             </p>
                             <p className="text-sm text-gray-500 dark:text-gray-400">
-                              {order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''} • {order.total?.toFixed(2)} RLUSD
+                              {order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''} • {order.total?.toFixed(2)} XRP
                             </p>
                           </div>
                           <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
@@ -460,7 +552,7 @@ export default function DeliveryTrackingModal({ isOpen, onClose, walletAddress }
                               {item.product?.name || 'Unknown'} × {item.quantity}
                             </span>
                             <span className="text-gray-500 dark:text-gray-500">
-                              {((item.product?.price || 0) * item.quantity).toFixed(2)} RLUSD
+                              {((item.product?.price || 0) * item.quantity).toFixed(2)} XRP
                             </span>
                           </div>
                         ))}

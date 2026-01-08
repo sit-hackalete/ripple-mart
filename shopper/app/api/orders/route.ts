@@ -34,6 +34,8 @@ export async function POST(request: NextRequest) {
 
     // Create order (without _id - MongoDB will generate it)
     const now = new Date();
+    
+    // Start with just order_placed - stages will progress automatically
     const order = {
       userWalletAddress: walletAddress,
       items,

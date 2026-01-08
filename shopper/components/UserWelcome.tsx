@@ -74,7 +74,7 @@ export default function UserWelcome() {
             <span>Orders: {userInfo.totalOrders}</span>
           )}
           {userInfo.totalSpent !== undefined && (
-            <span>Total Spent: {userInfo.totalSpent.toFixed(2)} RLUSD</span>
+            <span>Total Spent: {userInfo.totalSpent.toFixed(2)} XRP</span>
           )}
         </div>
       )}

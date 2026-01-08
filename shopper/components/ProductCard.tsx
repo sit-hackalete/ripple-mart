@@ -15,17 +15,20 @@ export default function ProductCard({ product }: ProductCardProps) {
     <Link href={`/products/${product._id}`}>
       <div className="group relative flex flex-col h-full overflow-hidden rounded-2xl bg-white border border-gray-200/60 dark:border-gray-700/50 dark:bg-gray-900 transition-all duration-300 hover:shadow-lg hover:shadow-gray-200/40 dark:hover:shadow-gray-900/30 hover:-translate-y-0.5">
         {/* Image Container - 3/4 height */}
-        <div className="aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100/80 dark:from-gray-800 dark:to-gray-900 rounded-t-2xl">
-          <Image
-            src={imageSrc}
-            alt={product.name}
-            width={400}
-            height={300}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-            unoptimized
-          />
+        <div className="aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100/80 dark:from-gray-800 dark:to-gray-900 rounded-t-2xl relative flex items-center justify-center">
+          <div className="w-[90%] h-[90%] relative">
+            <Image
+              src={imageSrc}
+              alt={product.name}
+              width={400}
+              height={300}
+              className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105 rounded-lg"
+              unoptimized
+              style={{ objectFit: 'cover', objectPosition: 'center' }}
+            />
+          </div>
           {/* Subtle overlay on hover */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
         </div>
 
         {/* Content - Flex to fill remaining space */}

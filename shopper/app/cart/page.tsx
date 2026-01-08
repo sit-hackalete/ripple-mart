@@ -90,7 +90,7 @@ export default function CartPage() {
                     </h3>
                   </Link>
                   <p className="text-blue-600 font-medium">
-                    {item.product.price} RLUSD
+                    {item.product.price} XRP
                   </p>
                 </div>
 
@@ -114,7 +114,7 @@ export default function CartPage() {
 
                   <div className="text-right">
                     <p className="font-semibold text-gray-900 dark:text-white">
-                      {(item.product.price * item.quantity).toFixed(2)} RLUSD
+                      {(item.product.price * item.quantity).toFixed(2)} XRP
                     </p>
                   </div>
                 </div>
@@ -140,7 +140,7 @@ export default function CartPage() {
             <div className="space-y-2 mb-4">
               <div className="flex justify-between text-gray-600 dark:text-gray-400">
                 <span>Subtotal ({items.length} items)</span>
-                <span>{getTotalPrice().toFixed(2)} RLUSD</span>
+                <span>{getTotalPrice().toFixed(2)} XRP</span>
               </div>
               <div className="flex justify-between text-gray-600 dark:text-gray-400">
                 <span>Shipping</span>
@@ -149,7 +149,7 @@ export default function CartPage() {
               <div className="border-t border-gray-200 pt-2 dark:border-gray-700">
                 <div className="flex justify-between text-lg font-bold text-gray-900 dark:text-white">
                   <span>Total</span>
-                  <span>{getTotalPrice().toFixed(2)} RLUSD</span>
+                  <span>{getTotalPrice().toFixed(2)} XRP</span>
                 </div>
               </div>
             </div>
