@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useWallet } from '@/contexts/WalletContext';
+import { useWallet } from '@/lib/wallet-context';
 import { useCart } from '@/contexts/CartContext';
 
 export default function Header() {
-  const { isConnected, walletAddress, connectWallet, disconnectWallet, isLoading } = useWallet();
+  const { isConnected, walletAddress, connect, disconnect, isInstalled } = useWallet();
   const { getTotalItems } = useCart();
 
   const formatAddress = (address: string) => {
@@ -46,20 +46,20 @@ export default function Header() {
                   {formatAddress(walletAddress!)}
                 </span>
                 <button
-                  onClick={disconnectWallet}
+                  onClick={disconnect}
                   className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
                 >
                   Disconnect
                 </button>
               </div>
             ) : (
-              <button
-                onClick={connectWallet}
-                disabled={isLoading}
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {isLoading ? 'Connecting...' : 'Connect Wallet'}
-              </button>
+                <button
+                  onClick={connect}
+                  disabled={!isInstalled}
+                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {!isInstalled ? 'Install Crossmark' : 'Connect Wallet'}
+                </button>
             )}
           </div>
         </nav>

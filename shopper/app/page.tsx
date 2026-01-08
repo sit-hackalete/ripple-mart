@@ -1,21 +1,12 @@
 import { Suspense } from "react";
 import ProductCard from "@/components/ProductCard";
 import UserWelcome from "@/components/UserWelcome";
-import { Product } from "@/types";
-import clientPromise, { isMongoConnected } from "@/lib/mongodb";
+import { Product } from "@/lib/models";
+import clientPromise from "@/lib/mongodb";
 
 async function getProducts(): Promise<Product[]> {
-  // If MongoDB is not connected, return empty array
-  if (!isMongoConnected() || !clientPromise) {
-    return [];
-  }
-
   try {
-    const client = await clientPromise;
-    if (!client) {
-      return [];
-    }
-
+    const client = await clientPromise();
     const db = client.db("ripple_mart");
     const products = await db.collection("products").find({}).toArray();
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCart } from '@/contexts/CartContext';
-import { useWallet } from '@/contexts/WalletContext';
+import { useWallet } from '@/lib/wallet-context';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';

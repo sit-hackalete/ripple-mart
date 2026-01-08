@@ -1,20 +1,25 @@
-import { MongoClient } from "mongodb";
+import { MongoClient, Db } from "mongodb";
 
-// Use dummy value if MONGODB_URI is not set (for development)
-const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/ripple_mart_dummy";
 const options = {};
 
 let client: MongoClient;
 let clientPromise: Promise<MongoClient> | null = null;
 
-// Only create connection if we have a real MongoDB URI
-const hasRealUri = process.env.MONGODB_URI && process.env.MONGODB_URI !== "mongodb://localhost:27017/ripple_mart_dummy";
+function getClientPromise(): Promise<MongoClient> {
+  if (!process.env.MONGODB_URI) {
+    throw new Error("Please add your Mongo URI to .env.local");
+  }
 
-if (hasRealUri) {
+  if (clientPromise) {
+    return clientPromise;
+  }
+
+  const uri: string = process.env.MONGODB_URI;
+
   if (process.env.NODE_ENV === "development") {
     // In development mode, use a global variable so that the value
     // is preserved across module reloads caused by HMR (Hot Module Replacement).
-    let globalWithMongo = global as typeof globalThis & {
+    const globalWithMongo = global as typeof globalThis & {
       _mongoClientPromise?: Promise<MongoClient>;
     };
 
@@ -28,15 +33,15 @@ if (hasRealUri) {
     client = new MongoClient(uri, options);
     clientPromise = client.connect();
   }
-} else {
-  console.warn('⚠️  MONGODB_URI not set. Using dummy connection. App will run in demo mode.');
+
+  return clientPromise;
 }
 
-// Export a module-scoped MongoClient promise. By doing this in a
-// separate module, the client can be shared across functions.
-export default clientPromise;
+// Export a function that returns the client promise
+// This defers the MongoDB connection until it's actually needed
+export default getClientPromise;
 
-// Helper to check if MongoDB is actually connected
-export function isMongoConnected(): boolean {
-  return clientPromise !== null;
+export async function getDatabase(): Promise<Db> {
+  const client = await getClientPromise();
+  return client.db(process.env.MONGODB_DB_NAME || "ripple_mart");
 }
