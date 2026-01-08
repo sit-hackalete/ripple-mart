@@ -38,7 +38,7 @@ const EscrowSchema: Schema = new Schema({
   },
   isProcessing: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
-})
+}, { collection: 'escrow-oracle' })
 
 export default mongoose.model<IEscrow>("Escrow", EscrowSchema)
 
