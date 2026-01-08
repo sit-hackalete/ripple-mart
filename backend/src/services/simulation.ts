@@ -16,7 +16,18 @@ export interface JourneyStage {
  * - IN_TRANSIT: 1-3 mins (Flying to Singapore)
  * - DELIVERED: 3+ mins (Arrived at Destination)
  */
-export const getJourneyStage = (createdAt: Date): JourneyStage => {
+export const getJourneyStage = (createdAt: Date, status?: EscrowStatus): JourneyStage => {
+  if (status === EscrowStatus.PREPARED) {
+    return {
+      currentStatus: EscrowStatus.PREPARED,
+      nextStatus: EscrowStatus.PENDING,
+      secondsToNextStage: 0,
+      isConfirmable: false,
+      message: "Waiting for XRPL transaction to be finalized...",
+      location: "Customer Checkout"
+    }
+  }
+
   const now = new Date()
   const elapsedSeconds = Math.floor((now.getTime() - createdAt.getTime()) / 1000)
   const elapsedMinutes = elapsedSeconds / 60

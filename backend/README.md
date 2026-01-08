@@ -61,16 +61,25 @@ The server will run on `http://localhost:3001` and the background workers will s
 
 ## 🔌 API Endpoints
 
-### Escrow Management
-- **`POST /api/escrow/create`**
-  - Registers a new escrow, generates the `Condition`, and saves the encrypted `Fulfillment`.
-  - Body: `{ txHash, offerSequence, buyerAddress, sellerAddress, amount, cancelAfter }`
-- **`GET /api/escrow/status/:txHash`**
-  - Returns current journey stage, countdown to next stage, and `isConfirmable` flag.
-- **`POST /api/escrow/confirm/:txHash`**
-  - Manually release funds once status is `DELIVERED`.
-- **`POST /api/escrow/refund/:txHash`**
-  - Manually refund funds if `CancelAfter` has passed.
+### 🚀 Hands-Free Seamless Checkout (Best)
+This flow uses the **Ledger Listener** to automatically detect your payment. No manual copy-pasting required!
+
+1. **`POST /api/escrow/prepare`**
+   - **When**: Customer clicks "Checkout".
+   - **Body**: `{ buyerAddress, sellerAddress, amount, cancelAfter }`
+   - **Response**: `{ dbId, condition }`
+2. **XRPL Action**: The frontend uses the `condition` to trigger the wallet (Crossmark/Xaman).
+3. **Automatic**: The backend **Listener** detects the transaction on the ledger, matches the `condition`, and automatically finalizes the record.
+4. **`GET /api/escrow/status/db/:dbId`**
+   - **When**: Poll this every few seconds.
+   - **Result**: Once finalized, status moves from `PREPARED` to `PENDING` automatically.
+
+### Escrow Management (Manual/Legacy)
+- **`POST /api/escrow/finalize/:dbId`**: Manually link a record if the listener is disabled.
+- **`POST /api/escrow/create`**: Create a record if you already have the ledger hash.
+- **`GET /api/escrow/status/:txHash`**: Track simulation using the transaction hash.
+- **`POST /api/escrow/confirm/:txHash`**: Manually release funds once status is `DELIVERED`.
+- **`POST /api/escrow/refund/:txHash`**: Manually refund funds if `CancelAfter` has passed.
 
 ---
 
