@@ -23,6 +23,8 @@ interface MerchantStats {
   totalSales: number;
   totalProducts: number;
   recentSales: number;
+  lowStockItems: number;
+  isDemo?: boolean;
   chartData: Array<{ day: string; sales: number }>;
 }
 
@@ -35,6 +37,7 @@ interface RecentOrder {
 }
 
 interface TopProduct {
+  productId: string;
   name: string;
   image: string;
   soldCount: number;
@@ -42,13 +45,15 @@ interface TopProduct {
 }
 
 export default function Dashboard() {
-  const { isConnected, walletAddress } = useWallet();
+  const { isConnected, walletAddress, isLoading: walletLoading } = useWallet();
   const [stats, setStats] = useState<MerchantStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (isConnected && walletAddress) {
       void fetchStats();
+      void fetchTopProducts();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, walletAddress]);
@@ -71,6 +76,7 @@ export default function Dashboard() {
           totalSales: 0,
           totalProducts: 0,
           recentSales: 0,
+          lowStockItems: 0,
           chartData: [],
         });
       }
@@ -82,10 +88,26 @@ export default function Dashboard() {
         totalSales: 0,
         totalProducts: 0,
         recentSales: 0,
+        lowStockItems: 0,
         chartData: [],
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTopProducts = async () => {
+    if (!walletAddress) return;
+
+    try {
+      const response = await fetch(`/api/merchant/top-products?walletAddress=${walletAddress}&limit=3`);
+      const data = await response.json();
+      
+      if (response.ok && data.topProducts) {
+        setTopProducts(data.topProducts);
+      }
+    } catch (error) {
+      console.error('Error fetching top products:', error);
     }
   };
 
@@ -98,11 +120,6 @@ export default function Dashboard() {
     { id: 'ORD-005', customerName: 'Emma Davis', status: 'Paid', total: 175.25, date: '2026-01-06' },
   ];
 
-  const mockTopProducts: TopProduct[] = [
-    { name: 'Wireless Headphones', image: '/api/placeholder/80/80', soldCount: 24, revenue: 2400 },
-    { name: 'Smart Watch Pro', image: '/api/placeholder/80/80', soldCount: 18, revenue: 3600 },
-    { name: 'USB-C Hub', image: '/api/placeholder/80/80', soldCount: 15, revenue: 750 },
-  ];
 
   const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long' });
   const merchantName = walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Merchant';
@@ -137,10 +154,22 @@ export default function Dashboard() {
   
   // Calculate metrics
   const activeOrders = mockOrders.filter(o => o.status === 'Pending').length;
-  const lowStockItems = 3; // Mock data
+  const lowStockItems = stats?.lowStockItems || 0; // Real data from API
   const avgOrderValue = stats?.totalRevenue && stats?.totalSales > 0 
     ? stats.totalRevenue / stats.totalSales 
     : 145;
+
+  // Show loading screen while wallet is initializing
+  if (walletLoading) {
+    return (
+      <div className="container mx-auto px-6 py-20">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 dark:border-slate-800 border-t-[#007AFF]"></div>
+          <p className="mt-6 text-slate-600 dark:text-slate-400 text-lg">Connecting to wallet...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isConnected || !walletAddress) {
     return (
@@ -383,13 +412,22 @@ export default function Dashboard() {
                   Top Products
                 </h2>
                 <div className="space-y-4">
-                  {mockTopProducts.map((product, index) => (
-                    <div key={index} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                  {topProducts.map((product, index) => (
+                    <div key={product.productId} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                       <div className="relative">
                         <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden">
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Package className="w-6 h-6 text-slate-400" strokeWidth={1.5} />
-                          </div>
+                          {product.image && product.image !== '/api/placeholder/80/80' ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={product.image}
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Package className="w-6 h-6 text-slate-400" strokeWidth={1.5} />
+                            </div>
+                          )}
                         </div>
                         <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
                           {index + 1}
@@ -406,7 +444,7 @@ export default function Dashboard() {
                     </div>
                   ))}
                 </div>
-                {mockTopProducts.length === 0 && (
+                {topProducts.length === 0 && (
                   <div className="text-center py-12">
                     <ShoppingBag className="w-12 h-12 mx-auto mb-3 text-slate-300 dark:text-slate-600" strokeWidth={1.5} />
                     <p className="text-sm text-slate-500 dark:text-slate-400">No sales yet</p>

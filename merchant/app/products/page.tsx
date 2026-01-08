@@ -18,9 +18,9 @@ import {
 } from 'lucide-react';
 
 export default function ProductsPage() {
-  const { isConnected, walletAddress } = useWallet();
+  const { isConnected, walletAddress, isLoading: walletLoading } = useWallet();
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
@@ -57,19 +57,22 @@ export default function ProductsPage() {
   useEffect(() => {
     if (isConnected && walletAddress) {
       void fetchProducts();
-    } else {
-      setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, walletAddress]);
 
-  // Fetch XRP price when modal opens
+  // Fetch XRP price when page loads and keep it updated
+  useEffect(() => {
+    fetchXrpPrice();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchXrpPrice, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch XRP price when modal opens (for immediate update)
   useEffect(() => {
     if (showAddModal) {
       fetchXrpPrice();
-      // Refresh every 30 seconds while modal is open
-      const interval = setInterval(fetchXrpPrice, 30000);
-      return () => clearInterval(interval);
     }
   }, [showAddModal]);
 
@@ -214,32 +217,25 @@ export default function ProductsPage() {
     }
   };
 
+  // Show loading screen while wallet is initializing
+  if (walletLoading) {
+    return (
+      <div className="container mx-auto px-6 py-20">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 dark:border-slate-800 border-t-[#007AFF]"></div>
+          <p className="mt-6 text-slate-600 dark:text-slate-400 text-lg">Connecting to wallet...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Show loading screen while products are loading
   if (loading) {
     return (
       <div className="container mx-auto px-6 py-20">
-        <div className="max-w-2xl mx-auto text-center">
-          <div className="mb-8">
-            {/* Animated gradient circle */}
-            <div className="relative w-24 h-24 mx-auto mb-8">
-              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 animate-spin" style={{ animationDuration: '3s' }} />
-              <div className="absolute inset-2 rounded-full bg-white dark:bg-gray-900 flex items-center justify-center">
-                <Package className="w-10 h-10 text-blue-600 dark:text-blue-400" strokeWidth={2} />
-              </div>
-            </div>
-            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-3 tracking-tight">
-              Loading Products
-            </h2>
-            <p className="text-base text-slate-600 dark:text-slate-400 mb-6">
-              Please wait while we establish your connection...
-            </p>
-            {/* Animated dots */}
-            <div className="flex justify-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-2 h-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-2 h-2 rounded-full bg-pink-500 animate-bounce" style={{ animationDelay: '300ms' }} />
-            </div>
-          </div>
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 dark:border-slate-800 border-t-[#007AFF]"></div>
+          <p className="mt-6 text-slate-600 dark:text-slate-400 text-lg">Loading your products...</p>
         </div>
       </div>
     );
@@ -455,10 +451,15 @@ export default function ProductsPage() {
                   <div className="mb-4">
                     <div className="flex items-baseline gap-1.5">
                       <p className="text-lg font-bold text-blue-600 dark:text-blue-500">
-                        {product.price.toFixed(2)}
+                        {xrpPrice ? (product.price / xrpPrice).toFixed(4) : '...'}
                       </p>
-                      <p className="text-xs font-medium text-slate-400">RLUSD</p>
+                      <p className="text-xs font-medium text-slate-400">XRP</p>
                     </div>
+                    {xrpPrice && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        ≈ ${product.price.toFixed(2)} USD
+                      </p>
+                    )}
                   </div>
                   
                   {/* Action Footer */}
@@ -617,65 +618,44 @@ export default function ProductsPage() {
                 </div>
                 
                 {/* Live Conversion Display */}
-                {formData.price && parseFloat(formData.price) > 0 && (
+                {formData.price && parseFloat(formData.price) > 0 && xrpPrice && (
                   <div className="space-y-3 p-4 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 rounded-xl border border-blue-100 dark:border-blue-900/30">
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                         <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                        Live Conversion
+                        XRP Conversion
                       </h4>
                       {loadingXrpPrice && (
                         <span className="text-xs text-slate-500 dark:text-slate-400">Updating...</span>
                       )}
                     </div>
 
-                    {/* RLUSD Conversion */}
+                    {/* XRP Conversion */}
                     <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800/50 rounded-lg">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                          <span className="text-lg font-bold text-blue-600 dark:text-blue-400">Ⓡ</span>
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                          <span className="text-lg font-bold text-white">✕</span>
                         </div>
                         <div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400">RLUSD (Stablecoin)</div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400">XRP</div>
                           <div className="text-lg font-bold text-slate-900 dark:text-white">
-                            {parseFloat(formData.price).toFixed(2)}
+                            {(parseFloat(formData.price) / xrpPrice).toFixed(4)}
                           </div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-xs text-slate-500 dark:text-slate-400">Rate</div>
-                        <div className="text-sm font-semibold text-green-600 dark:text-green-400">1:1 USD</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">1 XRP =</div>
+                        <div className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                          ${xrpPrice.toFixed(4)}
+                        </div>
                       </div>
                     </div>
-
-                    {/* XRP Conversion */}
-                    {xrpPrice && (
-                      <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800/50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                            <span className="text-lg font-bold text-white">✕</span>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">XRP</div>
-                            <div className="text-lg font-bold text-slate-900 dark:text-white">
-                              {(parseFloat(formData.price) / xrpPrice).toFixed(4)}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs text-slate-500 dark:text-slate-400">1 XRP =</div>
-                          <div className="text-sm font-semibold text-blue-600 dark:text-blue-400">
-                            ${xrpPrice.toFixed(4)}
-                          </div>
-                        </div>
-                      </div>
-                    )}
 
                     {/* Info Text */}
                     <div className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400 pt-2 border-t border-slate-200 dark:border-slate-700">
                       <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                       <p>
-                        Prices are stored in RLUSD. XRP rate updates every 30 seconds from live market data.
+                        XRP rate updates every 30 seconds from live market data.
                       </p>
                     </div>
                   </div>
@@ -792,7 +772,7 @@ export default function ProductsPage() {
                     {productToDelete.name}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {productToDelete.price.toFixed(2)} RLUSD • {productToDelete.stock} in stock
+                    {xrpPrice ? (productToDelete.price / xrpPrice).toFixed(4) : '...'} XRP • {productToDelete.stock} in stock
                   </p>
                 </div>
               </div>
