@@ -32,9 +32,25 @@ npm install
 Create a `.env.local` file in the root directory:
 
 ```env
+# MongoDB Configuration
 MONGODB_URI=your_mongodb_connection_string
 MONGODB_DB_NAME=ripple_mart
+
+# Pinata IPFS Configuration (for DID publishing)
+PINATA_JWT=your_pinata_jwt_token
+IPFS_GATEWAY_BASE=https://gateway.pinata.cloud/ipfs/
+# Optional: Custom IPFS gateway for DID resolution (fallback if public gateways fail)
+CUSTOM_IPFS_GATEWAY=https://your-custom-gateway.mypinata.cloud
+
+# App Configuration (optional)
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
+
+**Getting a Pinata JWT:**
+1. Sign up at [Pinata](https://pinata.cloud)
+2. Go to API Keys section
+3. Create a new API key with `pinJSONToIPFS` permission
+4. Copy the JWT token and add it to `.env.local`
 
 4. Run the development server:
 

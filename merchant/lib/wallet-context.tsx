@@ -31,15 +31,13 @@ const getNetworkString = (network: unknown): string | null => {
 };
 
 export function WalletProvider({ children }: { children: ReactNode }) {
-  const [walletAddress, setWalletAddress] = useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('walletAddress');
-    }
-    return null;
-  });
+  // Always initialize with null to avoid hydration mismatch
+  // We'll load from localStorage in useEffect after mount
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [network, setNetwork] = useState<string | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   // Check if Crossmark is installed
   const checkInstalled = async () => {
@@ -169,6 +167,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Initialize and set up event listeners
   useEffect(() => {
+    // Mark as hydrated first to prevent hydration mismatches
+    setIsHydrated(true);
+    
+    // Load wallet address from localStorage after hydration
+    if (typeof window !== 'undefined') {
+      const storedAddress = localStorage.getItem('walletAddress');
+      if (storedAddress) {
+        setWalletAddress(storedAddress);
+      }
+    }
+    
     // Initial check - use setTimeout to avoid calling setState synchronously
     const initialize = async () => {
       await checkInstalled();

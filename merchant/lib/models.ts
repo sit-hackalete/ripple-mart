@@ -3,6 +3,14 @@ export interface Merchant {
   walletAddress: string; // Same as _id, kept for clarity and queries
   name?: string;
   email?: string;
+  // DID-related fields
+  did?: string; // did:xrpl:walletAddress
+  didCid?: string; // IPFS CID
+  didIpfsUri?: string; // ipfs://CID
+  didGatewayUrl?: string; // Full gateway URL
+  didStatus?: "did_ready" | "anchored_on_xrpl"; // DID lifecycle status
+  didAnchoredTxHash?: string; // XRPL transaction hash when anchored
+  didAnchoredAt?: Date; // Timestamp when DID was anchored
   createdAt?: Date;
   updatedAt?: Date;
 }

@@ -40,6 +40,16 @@ export default function Navigation() {
               >
                 Products
               </Link>
+              <Link
+                href="/did"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive('/did')
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                DID Onboarding
+              </Link>
             </div>
           </div>
           <WalletButton />
