@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let shopper: any = await db
         .collection("shoppers")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .findOne({ _id: walletAddress as unknown as any });
 
       if (!shopper) {
@@ -115,9 +116,9 @@ export async function POST(request: NextRequest) {
       if (name !== undefined) updateData.$set.name = name;
       if (email !== undefined) updateData.$set.email = email;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await db
         .collection("shoppers")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .updateOne({ _id: walletAddress as unknown as any }, updateData, {
           upsert: true,
         });
@@ -126,6 +127,7 @@ export async function POST(request: NextRequest) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const shopper: any = await db
         .collection("shoppers")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .findOne({ _id: walletAddress as unknown as any });
 
       return NextResponse.json({ shopper }, { status: 200 });

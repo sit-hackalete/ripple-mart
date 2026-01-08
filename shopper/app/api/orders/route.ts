@@ -18,8 +18,8 @@ export async function POST(request: NextRequest) {
       const db = client.db("ripple_mart");
 
     // Ensure shopper exists (should already exist from wallet connection, but check anyway)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await db.collection("shoppers").updateOne(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { _id: walletAddress as unknown as any },
       {
         $set: { walletAddress, updatedAt: new Date() },
@@ -45,8 +45,8 @@ export async function POST(request: NextRequest) {
     const result = await db.collection("orders").insertOne(order);
 
     // Update shopper stats
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await db.collection("shoppers").updateOne(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { _id: walletAddress as unknown as any },
       {
         $inc: { totalOrders: 1, totalSpent: total },
