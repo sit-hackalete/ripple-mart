@@ -9,7 +9,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const data = await request.json();
-    const { name, description, price, imageUrl, category, stock, isActive } = data;
+    const { name, description, price, images, imageUrl, category, stock, isActive } = data;
 
     // Try to get database, but return error if not available
     let db;
@@ -30,6 +30,7 @@ export async function PUT(
       name?: string;
       description?: string;
       price?: number;
+      images?: string[];
       imageUrl?: string;
       category?: string;
       stock?: number;
@@ -41,6 +42,7 @@ export async function PUT(
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
     if (price !== undefined) updateData.price = parseFloat(price);
+    if (images !== undefined) updateData.images = images;
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
     if (category !== undefined) updateData.category = category;
     if (stock !== undefined) updateData.stock = parseInt(stock);

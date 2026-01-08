@@ -42,10 +42,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Upload to Vercel Blob
+    // Upload to Vercel Blob with unique filename
     const blob = await put(file.name, file, {
       access: 'public',
       token: process.env.BLOB_READ_WRITE_TOKEN,
+      addRandomSuffix: true, // Automatically adds unique suffix to prevent conflicts
     });
 
     return NextResponse.json({
