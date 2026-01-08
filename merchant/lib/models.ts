@@ -13,7 +13,8 @@ export interface Product {
   name: string;
   description: string;
   price: number; // Price in RLUSD
-  imageUrl?: string;
+  images?: string[]; // Array of image URLs from Vercel Blob
+  imageUrl?: string; // Legacy field for backward compatibility
   category?: string;
   stock: number;
   isActive: boolean;

@@ -14,8 +14,9 @@ A modern, professional ecommerce platform for merchants, built with Next.js, Typ
 - 🛍️ **Product Management** - Full CRUD operations for product catalog
 - 💰 **RLUSD Pricing** - All transactions in Ripple's stablecoin
 - 🗄️ **MongoDB Database** - Scalable cloud or local database storage
-- 🎨 **Modern UI/UX** - Clean, professional design with dark mode support
+- 🎨 **Soft Fintech Minimalism Design** - Azure Blue brand, pill-shaped buttons, rounded cards
 - 📱 **Fully Responsive** - Optimized for desktop, tablet, and mobile
+- 🌙 **Dark Mode Support** - Complete light/dark theme implementation
 
 ## 🚀 Quick Start
 
@@ -59,7 +60,10 @@ npm run dev
    - Connect your Crossmark wallet
    - Add your first product!
 
-📖 **Need help?** See our [Quick Start Guide](./docs/QUICK_START.md) or [MongoDB Setup Guide](./docs/MONGODB_SETUP.md)
+📖 **Need help?** 
+- **New to MongoDB?** Start with [Beginner's Guide](./docs/MONGODB_BEGINNER_GUIDE.md) (easiest!)
+- **Quick setup:** [Quick Start Guide](./docs/QUICK_START.md)
+- **Detailed guide:** [MongoDB Setup Guide](./docs/MONGODB_SETUP.md)
 
 ## 📚 Documentation
 
@@ -216,9 +220,9 @@ npm run type-check
 
 1. **API Routes**: Create in `app/api/`
 2. **Pages**: Add to `app/` directory
-3. **Components**: Build in `components/`
+3. **Components**: Build in `components/` (use `components/ui/` for reusable UI)
 4. **Types**: Update `lib/models.ts`
-5. **Styling**: Follow [Style Guide](./docs/STYLE_GUIDE.md)
+5. **Styling**: Follow [Design System](./docs/DESIGN_SYSTEM.md)
 
 ### Environment Variables
 
@@ -287,10 +291,16 @@ MIT License - see LICENSE file for details
 
 Need help? Check these resources:
 
+### Setup & Configuration
 1. 📋 [Quick Start Guide](./docs/QUICK_START.md)
 2. 🗄️ [MongoDB Setup Guide](./docs/MONGODB_SETUP.md)
 3. ✅ [Setup Checklist](./docs/CHECKLIST.md)
-4. 🎨 [Style Guide](./docs/STYLE_GUIDE.md)
+
+### Design & Development
+4. 🎨 [Design System](./docs/DESIGN_SYSTEM.md) - Complete design guidelines
+5. 🎯 [Quick Reference](./docs/QUICK_REFERENCE.md) - Copy-paste patterns
+6. 🌈 [Color Palette](./docs/COLOR_PALETTE.md) - All colors and usage
+7. 📝 [Styling Summary](./docs/STYLING_SUMMARY.md) - Implementation details
 
 ---
 

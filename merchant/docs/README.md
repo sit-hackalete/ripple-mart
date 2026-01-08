@@ -8,6 +8,21 @@ Welcome to the Ripple Mart Merchant Dashboard documentation! This folder contain
 
 ### Getting Started
 
+#### 🎓 [MongoDB for Complete Beginners](./MONGODB_BEGINNER_GUIDE.md)
+**Time: 15 minutes (includes reading)**  
+**NEW!** Step-by-step guide with pictures and simple explanations for MongoDB first-timers.
+
+**What's inside:**
+- What is MongoDB (in plain English)
+- Visual walkthrough of MongoDB Atlas
+- Where to click, what to type
+- Screenshots and examples
+- Common mistakes and how to avoid them
+
+**Start here if:** You've never used MongoDB before! This is your guide.
+
+---
+
 #### 🚀 [Quick Start Guide](./QUICK_START.md)
 **Time: 5 minutes**  
 Get your merchant dashboard running with MongoDB in just a few steps.
@@ -18,7 +33,7 @@ Get your merchant dashboard running with MongoDB in just a few steps.
 - First product creation
 - Basic troubleshooting
 
-**Start here if:** You want to get up and running fast!
+**Start here if:** You want to get up and running fast and have some MongoDB experience!
 
 ---
 
