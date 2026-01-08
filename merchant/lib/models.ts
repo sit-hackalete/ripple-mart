@@ -1,6 +1,6 @@
 export interface Merchant {
-  _id?: string;
-  walletAddress: string;
+  _id: string; // Wallet address used as unique identifier/primary key
+  walletAddress: string; // Same as _id, kept for clarity and queries
   name?: string;
   email?: string;
   createdAt?: Date;
@@ -30,7 +30,6 @@ export interface Sale {
   totalAmount: number; // Amount in RLUSD
   customerWalletAddress: string;
   transactionHash: string;
-  status: 'pending' | 'completed' | 'failed';
+  status: "pending" | "completed" | "failed";
   createdAt?: Date;
 }
-

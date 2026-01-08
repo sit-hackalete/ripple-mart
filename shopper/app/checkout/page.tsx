@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
-import { useWallet } from '@/contexts/WalletContext';
+import { useWallet } from '@/lib/wallet-context';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import sdk from '@crossmarkio/sdk';
 import sdk from '@crossmarkio/sdk';
 
 export default function CheckoutPage() {

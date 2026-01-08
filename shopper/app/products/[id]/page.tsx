@@ -1,21 +1,12 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import AddToCartButton from '@/components/AddToCartButton';
-import { Product } from '@/types';
-import clientPromise, { isMongoConnected } from '@/lib/mongodb';
+import { Product } from '@/lib/models';
+import clientPromise from '@/lib/mongodb';
 
 async function getProduct(id: string): Promise<Product | null> {
-  // If MongoDB is not connected, return null (will show 404)
-  if (!isMongoConnected() || !clientPromise) {
-    return null;
-  }
-
   try {
-    const client = await clientPromise;
-    if (!client) {
-      return null;
-    }
-    
+    const client = await clientPromise();
     const db = client.db('ripple_mart');
     const { ObjectId } = await import('mongodb');
     

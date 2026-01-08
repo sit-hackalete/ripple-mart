@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import clientPromise, { isMongoConnected } from "@/lib/mongodb";
-import { Order } from "@/types";
+import clientPromise from "@/lib/mongodb";
+import { Order } from "@/lib/models";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,31 +14,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If MongoDB is not connected, return success but don't save
-    if (!isMongoConnected() || !clientPromise) {
-      console.log("MongoDB not connected - order not saved (demo mode)");
-      return NextResponse.json(
-        { success: true, orderId: "demo-order-" + Date.now(), demo: true },
-        { status: 201 }
-      );
-    }
+    try {
+      const client = await clientPromise();
+      const db = client.db("ripple_mart");
 
-    const client = await clientPromise;
-    if (!client) {
-      return NextResponse.json(
-        { success: true, orderId: "demo-order-" + Date.now(), demo: true },
-        { status: 201 }
-      );
-    }
-
-    const db = client.db("ripple_mart");
-
-    // Create or update user
-    await db.collection("users").updateOne(
-      { walletAddress },
+    // Ensure shopper exists (should already exist from wallet connection, but check anyway)
+    await db.collection("shoppers").updateOne(
+      { _id: walletAddress },
       {
         $set: { walletAddress, updatedAt: new Date() },
-        $setOnInsert: { createdAt: new Date() },
+        $setOnInsert: {
+          createdAt: new Date(),
+          totalOrders: 0,
+          totalSpent: 0,
+        },
       },
       { upsert: true }
     );
@@ -55,10 +44,30 @@ export async function POST(request: NextRequest) {
 
     const result = await db.collection("orders").insertOne(order);
 
-    return NextResponse.json(
-      { success: true, orderId: result.insertedId },
-      { status: 201 }
+    // Update shopper stats
+    await db.collection("shoppers").updateOne(
+      { _id: walletAddress },
+      {
+        $inc: { totalOrders: 1, totalSpent: total },
+        $set: { updatedAt: new Date() },
+      }
     );
+
+      return NextResponse.json(
+        { success: true, orderId: result.insertedId },
+        { status: 201 }
+      );
+    } catch (mongoError: any) {
+      // MongoDB not available, return success but don't save
+      if (mongoError.message?.includes("Mongo URI")) {
+        console.log("MongoDB not connected - order not saved (demo mode)");
+        return NextResponse.json(
+          { success: true, orderId: "demo-order-" + Date.now(), demo: true },
+          { status: 201 }
+        );
+      }
+      throw mongoError;
+    }
   } catch (error) {
     console.error("Error creating order:", error);
     return NextResponse.json(
@@ -80,17 +89,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // If MongoDB is not connected, return empty array
-    if (!isMongoConnected() || !clientPromise) {
-      return NextResponse.json({ orders: [] }, { status: 200 });
-    }
-
-    const client = await clientPromise;
-    if (!client) {
-      return NextResponse.json({ orders: [] }, { status: 200 });
-    }
-
-    const db = client.db("ripple_mart");
+    try {
+      const client = await clientPromise();
+      const db = client.db("ripple_mart");
 
     const orders = await db
       .collection("orders")
@@ -98,7 +99,14 @@ export async function GET(request: NextRequest) {
       .sort({ createdAt: -1 })
       .toArray();
 
-    return NextResponse.json({ orders }, { status: 200 });
+      return NextResponse.json({ orders }, { status: 200 });
+    } catch (mongoError: any) {
+      // MongoDB not available, return empty array
+      if (mongoError.message?.includes("Mongo URI")) {
+        return NextResponse.json({ orders: [] }, { status: 200 });
+      }
+      throw mongoError;
+    }
   } catch (error) {
     console.error("Error fetching orders:", error);
     return NextResponse.json(
