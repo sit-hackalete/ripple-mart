@@ -28,6 +28,10 @@ export default function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
+  const [priceMode, setPriceMode] = useState<'RLUSD' | 'USD'>('USD');
+  const [usdAmount, setUsdAmount] = useState('');
+  const [xrpPrice, setXrpPrice] = useState<number | null>(null);
+  const [loadingXrpPrice, setLoadingXrpPrice] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -59,6 +63,36 @@ export default function ProductsPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, walletAddress]);
+
+  // Fetch XRP price when modal opens
+  useEffect(() => {
+    if (showAddModal) {
+      fetchXrpPrice();
+      // Refresh every 30 seconds while modal is open
+      const interval = setInterval(fetchXrpPrice, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [showAddModal]);
+
+  const fetchXrpPrice = async () => {
+    setLoadingXrpPrice(true);
+    try {
+      // Using CoinGecko API (free, no API key needed)
+      const response = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=ripple&vs_currencies=usd'
+      );
+      const data = await response.json();
+      if (data.ripple && data.ripple.usd) {
+        setXrpPrice(data.ripple.usd);
+      }
+    } catch (error) {
+      console.error('Error fetching XRP price:', error);
+      // Fallback price if API fails
+      setXrpPrice(0.50); // Approximate fallback
+    } finally {
+      setLoadingXrpPrice(false);
+    }
+  };
 
   const fetchProducts = async () => {
     if (!walletAddress) return;
@@ -108,6 +142,7 @@ export default function ProductsPage() {
           category: '',
           stock: '',
         });
+        setUsdAmount('');
         fetchProducts();
       } else {
         alert(data.error || 'Failed to save product. Please try again.');
@@ -120,15 +155,17 @@ export default function ProductsPage() {
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
+    const priceStr = product.price.toString();
     setFormData({
       name: product.name,
       description: product.description,
-      price: product.price.toString(),
+      price: priceStr,
       images: product.images || [],
       imageUrl: product.imageUrl || '',
       category: product.category || '',
       stock: product.stock.toString(),
     });
+    setUsdAmount(priceStr); // RLUSD is 1:1 with USD
     setShowAddModal(true);
   };
 
@@ -283,6 +320,7 @@ export default function ProductsPage() {
                   category: '',
                   stock: '',
                 });
+                setUsdAmount('');
                 setShowAddModal(true);
               }}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-sm font-medium transition-all shadow-sm"
@@ -327,6 +365,7 @@ export default function ProductsPage() {
                   category: '',
                   stock: '',
                 });
+                setUsdAmount('');
                 setShowAddModal(true);
               }}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-sm font-medium transition-all"
@@ -513,22 +552,138 @@ export default function ProductsPage() {
                 />
               </div>
               
-              <div className="grid grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
-                    Price (RLUSD) <span className="text-red-500">*</span>
+              {/* Price with Currency Toggle */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-semibold text-slate-900 dark:text-white">
+                    Price <span className="text-red-500">*</span>
                   </label>
+                  <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 rounded-full p-1">
+                    <button
+                      type="button"
+                      onClick={() => setPriceMode('USD')}
+                      className={`px-3 py-1 text-xs font-medium rounded-full transition-all ${
+                        priceMode === 'USD'
+                          ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                          : 'text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      USD
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPriceMode('RLUSD')}
+                      className={`px-3 py-1 text-xs font-medium rounded-full transition-all ${
+                        priceMode === 'RLUSD'
+                          ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                          : 'text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      RLUSD
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+                    <span className="text-slate-500 dark:text-slate-400 font-medium">
+                      {priceMode === 'USD' ? '$' : 'Ⓡ'}
+                    </span>
+                  </div>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     required
                     placeholder="0.00"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-[#007AFF] focus:border-transparent transition-all"
+                    value={priceMode === 'USD' ? usdAmount : formData.price}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (priceMode === 'USD') {
+                        setUsdAmount(value);
+                        // RLUSD is pegged 1:1 to USD
+                        setFormData({ ...formData, price: value });
+                      } else {
+                        setFormData({ ...formData, price: value });
+                        setUsdAmount(value);
+                      }
+                    }}
+                    className="w-full pl-10 pr-20 py-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-[#007AFF] focus:border-transparent transition-all"
                   />
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      {priceMode === 'USD' ? 'USD' : 'RLUSD'}
+                    </span>
+                  </div>
                 </div>
+                
+                {/* Live Conversion Display */}
+                {formData.price && parseFloat(formData.price) > 0 && (
+                  <div className="space-y-3 p-4 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                        Live Conversion
+                      </h4>
+                      {loadingXrpPrice && (
+                        <span className="text-xs text-slate-500 dark:text-slate-400">Updating...</span>
+                      )}
+                    </div>
+
+                    {/* RLUSD Conversion */}
+                    <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800/50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                          <span className="text-lg font-bold text-blue-600 dark:text-blue-400">Ⓡ</span>
+                        </div>
+                        <div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400">RLUSD (Stablecoin)</div>
+                          <div className="text-lg font-bold text-slate-900 dark:text-white">
+                            {parseFloat(formData.price).toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-slate-500 dark:text-slate-400">Rate</div>
+                        <div className="text-sm font-semibold text-green-600 dark:text-green-400">1:1 USD</div>
+                      </div>
+                    </div>
+
+                    {/* XRP Conversion */}
+                    {xrpPrice && (
+                      <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800/50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                            <span className="text-lg font-bold text-white">✕</span>
+                          </div>
+                          <div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">XRP</div>
+                            <div className="text-lg font-bold text-slate-900 dark:text-white">
+                              {(parseFloat(formData.price) / xrpPrice).toFixed(4)}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xs text-slate-500 dark:text-slate-400">1 XRP =</div>
+                          <div className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                            ${xrpPrice.toFixed(4)}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Info Text */}
+                    <div className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400 pt-2 border-t border-slate-200 dark:border-slate-700">
+                      <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                      <p>
+                        Prices are stored in RLUSD. XRP rate updates every 30 seconds from live market data.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-5">
                 <div>
                   <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
                     Stock Quantity <span className="text-red-500">*</span>
