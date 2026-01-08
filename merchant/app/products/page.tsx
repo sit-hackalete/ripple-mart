@@ -12,7 +12,10 @@ import {
   EyeOff, 
   Package, 
   X,
-  ImageIcon
+  ImageIcon,
+  Search,
+  Filter,
+  AlertCircle
 } from 'lucide-react';
 
 export default function ProductsPage() {
@@ -21,6 +24,8 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -29,6 +34,19 @@ export default function ProductsPage() {
     imageUrl: '', // Legacy field for backward compatibility
     category: '',
     stock: '',
+  });
+
+  // Filter products based on search and stock filter
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (product.category || '').toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStock = stockFilter === 'all' ? true :
+                        stockFilter === 'low' ? product.stock < 10 :
+                        product.stock === 0;
+    
+    return matchesSearch && matchesStock;
   });
 
   useEffect(() => {
@@ -204,170 +222,235 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="container mx-auto px-6 py-8">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">
-            Products
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+            My Products
           </h1>
-          <p className="text-lg text-slate-600 dark:text-slate-400">
-            Manage your store inventory
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Manage your inventory and product listings
           </p>
         </div>
-        <button
-          onClick={() => {
-            setEditingProduct(null);
-            setFormData({
-              name: '',
-              description: '',
-              price: '',
-              images: [],
-              imageUrl: '',
-              category: '',
-              stock: '',
-            });
-            setShowAddModal(true);
-          }}
-          className="flex items-center gap-2 px-5 py-3 bg-[#007AFF] hover:bg-[#0066DD] text-white rounded-full transition-all font-semibold shadow-sm"
-        >
-          <Plus className="w-5 h-5" strokeWidth={2} />
-          Add Product
-        </button>
-      </div>
 
-      {loading ? (
-        <div className="text-center py-20">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 dark:border-slate-800 border-t-[#007AFF]"></div>
-          <p className="mt-6 text-slate-600 dark:text-slate-400 text-lg">Loading products...</p>
-        </div>
-      ) : products.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-16 text-center shadow-sm">
-          <div className="w-20 h-20 mx-auto mb-6 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center">
-            <Package className="w-10 h-10 text-slate-300 dark:text-slate-600" strokeWidth={2} />
+        {/* Toolbar */}
+        <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          {/* Search */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search inventory..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+            />
           </div>
-          <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">No products yet</h3>
-          <p className="text-slate-600 dark:text-slate-400 mb-8 text-lg">
-            Start building your catalog by adding your first product
-          </p>
-          <button
-            onClick={() => {
-              setEditingProduct(null);
-              setFormData({
-                name: '',
-                description: '',
-                price: '',
-                images: [],
-                imageUrl: '',
-                category: '',
-                stock: '',
-              });
-              setShowAddModal(true);
-            }}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[#007AFF] hover:bg-[#0066DD] text-white rounded-full transition-all font-semibold shadow-sm"
-          >
-            <Plus className="w-5 h-5" strokeWidth={2} />
-            Add Your First Product
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product) => (
-            <div
-              key={product._id}
-              className={`group bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden hover:shadow-lg transition-all ${
-                !product.isActive ? 'opacity-60' : ''
-              }`}
+
+          {/* Actions */}
+          <div className="flex items-center gap-3">
+            {/* Stock Filter */}
+            <select
+              value={stockFilter}
+              onChange={(e) => setStockFilter(e.target.value as 'all' | 'low' | 'out')}
+              className="px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
             >
-              <div className="aspect-square w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-                {(product.images && product.images.length > 0) || product.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={product.images?.[0] || product.imageUrl || ''}
-                    alt={product.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <div className="w-20 h-20 bg-slate-200 dark:bg-slate-700 rounded-2xl flex items-center justify-center">
-                      <ImageIcon className="w-10 h-10 text-slate-400 dark:text-slate-500" strokeWidth={2} />
+              <option value="all">All Stock</option>
+              <option value="low">Low Stock (&lt;10)</option>
+              <option value="out">Out of Stock</option>
+            </select>
+
+            {/* Add Product Button */}
+            <button
+              onClick={() => {
+                setEditingProduct(null);
+                setFormData({
+                  name: '',
+                  description: '',
+                  price: '',
+                  images: [],
+                  imageUrl: '',
+                  category: '',
+                  stock: '',
+                });
+                setShowAddModal(true);
+              }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-sm font-medium transition-all shadow-sm"
+            >
+              <Plus className="w-4 h-4" strokeWidth={2.5} />
+              Add Product
+            </button>
+          </div>
+        </div>
+
+        {/* Results Count */}
+        {!loading && products.length > 0 && (
+          <div className="mb-4 text-sm text-slate-600 dark:text-slate-400">
+            Showing <span className="font-medium text-slate-900 dark:text-white">{filteredProducts.length}</span> of{' '}
+            <span className="font-medium text-slate-900 dark:text-white">{products.length}</span> products
+          </div>
+        )}
+
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-10 w-10 border-3 border-slate-200 dark:border-slate-800 border-t-blue-600"></div>
+            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Loading inventory...</p>
+          </div>
+        ) : products.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center">
+              <Package className="w-8 h-8 text-slate-400 dark:text-slate-500" strokeWidth={2} />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">No products found</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+              Get started by adding your first product to your inventory
+            </p>
+            <button
+              onClick={() => {
+                setEditingProduct(null);
+                setFormData({
+                  name: '',
+                  description: '',
+                  price: '',
+                  images: [],
+                  imageUrl: '',
+                  category: '',
+                  stock: '',
+                });
+                setShowAddModal(true);
+              }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-sm font-medium transition-all"
+            >
+              <Plus className="w-4 h-4" strokeWidth={2.5} />
+              Add Your First Product
+            </button>
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center">
+              <Search className="w-8 h-8 text-slate-400 dark:text-slate-500" strokeWidth={2} />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">No products match your search</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+              Try adjusting your search or filters
+            </p>
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setStockFilter('all');
+              }}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Clear filters
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {filteredProducts.map((product) => (
+              <div
+                key={product._id}
+                className="group bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 overflow-hidden hover:shadow-lg transition-all"
+              >
+                {/* Image with Badge Overlay */}
+                <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                  {(product.images && product.images.length > 0) || product.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={product.images?.[0] || product.imageUrl || ''}
+                      alt={product.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ImageIcon className="w-12 h-12 text-slate-300 dark:text-slate-600" strokeWidth={1.5} />
                     </div>
+                  )}
+                  
+                  {/* Status Badge */}
+                  <div className="absolute top-3 left-3">
+                    <span
+                      className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full backdrop-blur-sm ${
+                        product.stock === 0
+                          ? 'bg-red-500/90 text-white'
+                          : product.isActive
+                          ? 'bg-emerald-500/90 text-white'
+                          : 'bg-slate-500/90 text-white'
+                      }`}
+                    >
+                      {product.stock === 0 ? 'Out of Stock' : product.isActive ? 'Active' : 'Inactive'}
+                    </span>
                   </div>
-                )}
-              </div>
-              <div className="p-5">
-                <div className="flex justify-between items-start mb-3">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white line-clamp-1 flex-1">
+                </div>
+
+                {/* Content */}
+                <div className="p-4">
+                  {/* Title */}
+                  <h3 className="text-base font-medium text-slate-900 dark:text-white line-clamp-2 mb-2 min-h-[48px]">
                     {product.name}
                   </h3>
-                  <span
-                    className={`px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap ml-2 ${
-                      product.isActive
-                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
-                        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                    }`}
-                  >
-                    {product.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-                <p className="text-slate-600 dark:text-slate-400 text-sm mb-4 line-clamp-2 min-h-[40px]">
-                  {product.description}
-                </p>
-                <div className="flex justify-between items-center mb-5 pb-5 border-b border-slate-100 dark:border-slate-800">
-                  <div>
-                    <div className="flex items-baseline gap-2">
-                      <p className="text-2xl font-bold text-[#007AFF]">
+                  
+                  {/* Meta Row */}
+                  <div className="flex items-center justify-between mb-3 text-xs">
+                    <span className="text-slate-500 dark:text-slate-400">
+                      {product.category || 'General'}
+                    </span>
+                    <span className={`font-medium ${
+                      product.stock === 0 ? 'text-red-600' :
+                      product.stock < 10 ? 'text-amber-600' :
+                      'text-emerald-600'
+                    }`}>
+                      {product.stock} in stock
+                    </span>
+                  </div>
+                  
+                  {/* Price */}
+                  <div className="mb-4">
+                    <div className="flex items-baseline gap-1.5">
+                      <p className="text-lg font-bold text-blue-600 dark:text-blue-500">
                         {product.price.toFixed(2)}
                       </p>
-                      <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">RLUSD</p>
+                      <p className="text-xs font-medium text-slate-400">RLUSD</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                      Stock: {product.stock}
-                    </p>
-                    {product.category && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        {product.category}
-                      </p>
-                    )}
+                  
+                  {/* Action Footer */}
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                    <button
+                      onClick={() => handleEdit(product)}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 border border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-lg transition-all text-xs font-medium"
+                      title="Edit product"
+                    >
+                      <Edit className="w-3.5 h-3.5" strokeWidth={2} />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleToggleActive(product)}
+                      className="p-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-all"
+                      title={product.isActive ? 'Hide product' : 'Show product'}
+                    >
+                      {product.isActive ? (
+                        <EyeOff className="w-4 h-4" strokeWidth={2} />
+                      ) : (
+                        <Eye className="w-4 h-4" strokeWidth={2} />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => product._id && handleDelete(product._id)}
+                      className="p-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-red-50 hover:border-red-200 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:border-red-900 dark:hover:text-red-400 rounded-lg transition-all"
+                      title="Delete product"
+                    >
+                      <Trash2 className="w-4 h-4" strokeWidth={2} />
+                    </button>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEdit(product)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-[#007AFF] hover:bg-[#0066DD] text-white rounded-xl transition-all text-sm font-semibold"
-                    title="Edit product"
-                  >
-                    <Edit className="w-4 h-4" strokeWidth={2} />
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleToggleActive(product)}
-                    className="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl transition-all text-sm font-semibold"
-                    title={product.isActive ? 'Deactivate product' : 'Activate product'}
-                  >
-                    {product.isActive ? (
-                      <EyeOff className="w-4 h-4" strokeWidth={2} />
-                    ) : (
-                      <Eye className="w-4 h-4" strokeWidth={2} />
-                    )}
-                  </button>
-                  <button
-                    onClick={() => product._id && handleDelete(product._id)}
-                    className="px-3 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all text-sm font-semibold"
-                    title="Delete product"
-                  >
-                    <Trash2 className="w-4 h-4" strokeWidth={2} />
-                  </button>
-                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
 
-      {/* Add/Edit Modal */}
-      {showAddModal && (
+        {/* Add/Edit Modal */}
+        {showAddModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-8 py-6 flex justify-between items-center">
@@ -506,6 +589,7 @@ export default function ProductsPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
