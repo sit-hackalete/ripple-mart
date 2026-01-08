@@ -597,65 +597,44 @@ export default function ProductsPage() {
                 </div>
                 
                 {/* Live Conversion Display */}
-                {formData.price && parseFloat(formData.price) > 0 && (
+                {formData.price && parseFloat(formData.price) > 0 && xrpPrice && (
                   <div className="space-y-3 p-4 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 rounded-xl border border-blue-100 dark:border-blue-900/30">
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                         <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                        Live Conversion
+                        XRP Conversion
                       </h4>
                       {loadingXrpPrice && (
                         <span className="text-xs text-slate-500 dark:text-slate-400">Updating...</span>
                       )}
                     </div>
 
-                    {/* RLUSD Conversion */}
+                    {/* XRP Conversion */}
                     <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800/50 rounded-lg">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                          <span className="text-lg font-bold text-blue-600 dark:text-blue-400">Ⓡ</span>
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                          <span className="text-lg font-bold text-white">✕</span>
                         </div>
                         <div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400">RLUSD (Stablecoin)</div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400">XRP</div>
                           <div className="text-lg font-bold text-slate-900 dark:text-white">
-                            {parseFloat(formData.price).toFixed(2)}
+                            {(parseFloat(formData.price) / xrpPrice).toFixed(4)}
                           </div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-xs text-slate-500 dark:text-slate-400">Rate</div>
-                        <div className="text-sm font-semibold text-green-600 dark:text-green-400">1:1 USD</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">1 XRP =</div>
+                        <div className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                          ${xrpPrice.toFixed(4)}
+                        </div>
                       </div>
                     </div>
-
-                    {/* XRP Conversion */}
-                    {xrpPrice && (
-                      <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800/50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                            <span className="text-lg font-bold text-white">✕</span>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">XRP</div>
-                            <div className="text-lg font-bold text-slate-900 dark:text-white">
-                              {(parseFloat(formData.price) / xrpPrice).toFixed(4)}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs text-slate-500 dark:text-slate-400">1 XRP =</div>
-                          <div className="text-sm font-semibold text-blue-600 dark:text-blue-400">
-                            ${xrpPrice.toFixed(4)}
-                          </div>
-                        </div>
-                      </div>
-                    )}
 
                     {/* Info Text */}
                     <div className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400 pt-2 border-t border-slate-200 dark:border-slate-700">
                       <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                       <p>
-                        Prices are stored in RLUSD. XRP rate updates every 30 seconds from live market data.
+                        XRP rate updates every 30 seconds from live market data.
                       </p>
                     </div>
                   </div>
