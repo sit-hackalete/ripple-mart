@@ -1,8 +1,38 @@
 @import "tailwindcss";
 
+/* Soft Fintech Minimalism Design System */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Core Colors */
+  --background: #FFFFFF;
+  --background-subtle: #F8F9FA;
+  --foreground: #0F172A; /* slate-900 */
+  --foreground-muted: #64748B; /* slate-500 */
+  
+  /* Primary Brand - Azure Blue */
+  --primary: #007AFF;
+  --primary-hover: #0066DD;
+  --primary-light: #EFF6FF; /* blue-50 */
+  
+  /* Semantic Colors */
+  --success: #10B981; /* green-500 */
+  --success-bg: #D1FAE5; /* green-100 */
+  --error: #EF4444; /* red-500 */
+  --warning: #F59E0B; /* amber-500 */
+  
+  /* Borders & Shadows */
+  --border-color: #F1F5F9; /* slate-100 */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  
+  /* Radius */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-full: 9999px;
 }
 
 @theme inline {
@@ -15,12 +45,73 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
-    --foreground: #ededed;
+    --background-subtle: #1a1a1a;
+    --foreground: #F8FAFC;
+    --foreground-muted: #94A3B8;
+    --border-color: #1E293B;
+    --primary-light: #1E3A8A;
   }
 }
 
 body {
-  background: var(--background);
+  background: var(--background-subtle);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'SF Pro', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.011em; /* Tighter tracking for modern look */
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar - Softer and more minimal */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-thumb {
+    background: #334155;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+  }
+}
+
+/* Soft shadow utilities */
+.shadow-soft {
+  box-shadow: var(--shadow-sm);
+}
+
+.shadow-soft-md {
+  box-shadow: var(--shadow-md);
+}
+
+.shadow-soft-lg {
+  box-shadow: var(--shadow-lg);
+}
+
+/* Smooth transitions */
+* {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }

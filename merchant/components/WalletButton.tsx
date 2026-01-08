@@ -2,9 +2,10 @@
 
 import { useWallet } from '@/lib/wallet-context';
 import { useState } from 'react';
+import { Wallet, Download, CheckCircle2 } from 'lucide-react';
 
 export default function WalletButton() {
-  const { isConnected, walletAddress, network, isInstalled, connect, disconnect } = useWallet();
+  const { isConnected, walletAddress, isInstalled, connect, disconnect } = useWallet();
   const [isConnecting, setIsConnecting] = useState(false);
 
   const handleConnect = async () => {
@@ -18,23 +19,16 @@ export default function WalletButton() {
 
   if (isConnected && walletAddress) {
     return (
-      <div className="flex items-center gap-4">
-        {network && (
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg">
-            <span className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">
-              {network}
-            </span>
-          </div>
-        )}
-        <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <span className="text-sm font-medium text-green-700 dark:text-green-400">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900 rounded-full">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" strokeWidth={2} />
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
             {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
           </span>
         </div>
         <button
           onClick={disconnect}
-          className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors text-sm font-medium"
+          className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 rounded-full transition-all"
         >
           Disconnect
         </button>
@@ -48,8 +42,9 @@ export default function WalletButton() {
         href="https://chrome.google.com/webstore/detail/crossmark/khghbkmeeopmepgjojkmnlenmepfmhij"
         target="_blank"
         rel="noopener noreferrer"
-        className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors font-medium text-sm"
+        className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 rounded-full shadow-sm transition-all"
       >
+        <Download className="w-4 h-4" strokeWidth={2} />
         Install Crossmark
       </a>
     );
@@ -59,10 +54,10 @@ export default function WalletButton() {
     <button
       onClick={handleConnect}
       disabled={isConnecting}
-      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition-colors font-medium text-sm"
+      className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[#007AFF] hover:bg-[#0066DD] rounded-full shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      {isConnecting ? 'Connecting...' : 'Connect Crossmark'}
+      <Wallet className="w-4 h-4" strokeWidth={2} />
+      {isConnecting ? 'Connecting...' : 'Connect Wallet'}
     </button>
   );
 }
-

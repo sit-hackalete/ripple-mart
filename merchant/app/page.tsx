@@ -1,8 +1,18 @@
 'use client';
-// deploy
 
 import { useWallet } from '@/lib/wallet-context';
 import { useEffect, useState } from 'react';
+import { 
+  DollarSign, 
+  TrendingUp, 
+  ShoppingBag, 
+  Package, 
+  Plus, 
+  List, 
+  BarChart3,
+  Wallet,
+  ArrowUpRight
+} from 'lucide-react';
 
 interface MerchantStats {
   totalRevenue: number;
@@ -39,7 +49,6 @@ export default function Dashboard() {
         setStats(data);
       } else {
         console.error('Error fetching stats:', data.error || 'Invalid response');
-        // Set default empty stats structure
         setStats({
           totalRevenue: 0,
           profit: 0,
@@ -51,7 +60,6 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
-      // Set default empty stats structure on error
       setStats({
         totalRevenue: 0,
         profit: 0,
@@ -67,17 +75,25 @@ export default function Dashboard() {
 
   if (!isConnected || !walletAddress) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg p-12 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Welcome to Ripple Mart
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-8">
-            Please connect your Crossmark wallet to view your merchant dashboard.
-          </p>
-          <div className="inline-block p-8 bg-gray-100 dark:bg-gray-800 rounded-lg">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Connect your wallet using the button in the navigation bar above.
+      <div className="container mx-auto px-6 py-20">
+        <div className="max-w-2xl mx-auto text-center">
+          <div className="mb-8">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-[#007AFF] to-[#0066DD] flex items-center justify-center shadow-lg">
+              <Wallet className="w-10 h-10 text-white" strokeWidth={2} />
+            </div>
+            <h1 className="text-5xl font-bold text-slate-900 dark:text-white mb-4 tracking-tight">
+              Welcome to Ripple Mart
+            </h1>
+            <p className="text-xl text-slate-600 dark:text-slate-400 mb-8">
+              Manage your products and track your sales with RLUSD
+            </p>
+          </div>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm">
+            <p className="text-slate-700 dark:text-slate-300 mb-6 text-lg">
+              Connect your Crossmark wallet to access your merchant dashboard
+            </p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Use the &ldquo;Connect Wallet&rdquo; button in the navigation bar above
             </p>
           </div>
         </div>
@@ -87,10 +103,10 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="container mx-auto px-6 py-20">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading dashboard...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 dark:border-slate-800 border-t-[#007AFF]"></div>
+          <p className="mt-6 text-slate-600 dark:text-slate-400 text-lg">Loading your dashboard...</p>
         </div>
       </div>
     );
@@ -100,247 +116,193 @@ export default function Dashboard() {
     ? Math.max(...stats.chartData.map(d => d.sales))
     : 0;
 
+  // Calculate growth percentage (mock for now)
+  const growthPercentage = stats && stats.recentSales > 0 ? 15 : 0;
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Merchant Dashboard</h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
-          Overview of your business performance
+    <div className="container mx-auto px-6 py-8">
+      {/* Header */}
+      <div className="mb-10">
+        <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">
+          Dashboard
+        </h1>
+        <p className="text-lg text-slate-600 dark:text-slate-400">
+          Track your business performance and manage your store
         </p>
       </div>
 
       {stats && (
         <>
-          {/* Stats Grid */}
+          {/* Stats Grid - Styled like "Order Summary" */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                    Total Revenue
-                  </p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                    {stats.totalRevenue.toLocaleString('en-US', {
-                      style: 'currency',
-                      currency: 'USD',
-                      minimumFractionDigits: 2,
-                    })}
-                  </p>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">RL-USD</p>
-                </div>
-                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                  <svg
-                    className="w-8 h-8 text-blue-600 dark:text-blue-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
+            {/* Total Revenue Card */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 hover:shadow-md transition-all group">
+              <div className="flex items-start justify-between mb-4">
+                <div className="p-3 bg-[#EFF6FF] dark:bg-blue-950/30 rounded-xl group-hover:scale-110 transition-transform">
+                  <DollarSign className="w-6 h-6 text-[#007AFF]" strokeWidth={2} />
                 </div>
               </div>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
+                Total Revenue
+              </p>
+              <div className="flex items-baseline gap-2 mb-1">
+                <p className="text-3xl font-bold text-slate-900 dark:text-white">
+                  {stats.totalRevenue.toFixed(2)}
+                </p>
+                <p className="text-lg font-semibold text-[#007AFF]">RLUSD</p>
+              </div>
+              {growthPercentage > 0 && (
+                <div className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 dark:bg-emerald-950/30 rounded-full mt-2">
+                  <ArrowUpRight className="w-3 h-3 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
+                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    +{growthPercentage}%
+                  </span>
+                </div>
+              )}
             </div>
 
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Profit</p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                    {stats.profit.toLocaleString('en-US', {
-                      style: 'currency',
-                      currency: 'USD',
-                      minimumFractionDigits: 2,
-                    })}
-                  </p>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">After fees</p>
-                </div>
-                <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                  <svg
-                    className="w-8 h-8 text-green-600 dark:text-green-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                    />
-                  </svg>
+            {/* Net Profit Card */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 hover:shadow-md transition-all group">
+              <div className="flex items-start justify-between mb-4">
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl group-hover:scale-110 transition-transform">
+                  <TrendingUp className="w-6 h-6 text-emerald-600" strokeWidth={2} />
                 </div>
               </div>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
+                Net Profit
+              </p>
+              <div className="flex items-baseline gap-2 mb-1">
+                <p className="text-3xl font-bold text-slate-900 dark:text-white">
+                  {stats.profit.toFixed(2)}
+                </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">RLUSD</p>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">After platform fees</p>
             </div>
 
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                    Total Sales
-                  </p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                    {stats.totalSales}
-                  </p>
-                  <p className="mt-1 text-xs text-green-600 dark:text-green-400">
-                    {stats.recentSales} this week
-                  </p>
-                </div>
-                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                  <svg
-                    className="w-8 h-8 text-purple-600 dark:text-purple-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                    />
-                  </svg>
+            {/* Total Sales Card */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 hover:shadow-md transition-all group">
+              <div className="flex items-start justify-between mb-4">
+                <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-xl group-hover:scale-110 transition-transform">
+                  <ShoppingBag className="w-6 h-6 text-purple-600" strokeWidth={2} />
                 </div>
               </div>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
+                Total Sales
+              </p>
+              <p className="text-3xl font-bold text-slate-900 dark:text-white mb-1">
+                {stats.totalSales}
+              </p>
+              <p className="text-xs text-purple-600 dark:text-purple-400 mt-2 font-medium">
+                {stats.recentSales} this week
+              </p>
             </div>
 
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                    Active Products
-                  </p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                    {stats.totalProducts}
-                  </p>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">Listed items</p>
-                </div>
-                <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                  <svg
-                    className="w-8 h-8 text-orange-600 dark:text-orange-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                    />
-                  </svg>
+            {/* Active Products Card */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 hover:shadow-md transition-all group">
+              <div className="flex items-start justify-between mb-4">
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl group-hover:scale-110 transition-transform">
+                  <Package className="w-6 h-6 text-amber-600" strokeWidth={2} />
                 </div>
               </div>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
+                Active Products
+              </p>
+              <p className="text-3xl font-bold text-slate-900 dark:text-white mb-1">
+                {stats.totalProducts}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">In your catalog</p>
             </div>
           </div>
 
           {/* Sales Chart */}
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6 mb-8">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-              Sales Overview (Last 7 Days)
-            </h2>
-            <div className="flex items-end justify-between gap-4 h-64">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-8 mb-8 shadow-sm">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1 tracking-tight">
+                  Sales Overview
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Last 7 days performance
+                </p>
+              </div>
+              <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                <BarChart3 className="w-5 h-5 text-slate-600 dark:text-slate-400" strokeWidth={2} />
+              </div>
+            </div>
+            <div className="flex items-end justify-between gap-3 h-64">
               {stats.chartData && stats.chartData.length > 0 ? (
                 stats.chartData.map((item, index) => (
-                  <div key={index} className="flex-1 flex flex-col items-center">
+                  <div key={index} className="flex-1 flex flex-col items-center group">
                     <div className="relative w-full h-full flex items-end">
                       <div
-                        className="w-full bg-gradient-to-t from-blue-500 to-blue-400 rounded-t-lg transition-all hover:opacity-80"
+                        className="w-full bg-gradient-to-t from-[#007AFF] to-[#0066DD] rounded-t-xl transition-all hover:from-[#0066DD] hover:to-[#0055CC] cursor-pointer shadow-sm"
                         style={{
                           height: `${maxSales > 0 ? (item.sales / maxSales) * 100 : 0}%`,
-                          minHeight: item.sales > 0 ? '8px' : '0',
+                          minHeight: item.sales > 0 ? '16px' : '0',
                         }}
-                        title={`${item.day}: ${item.sales.toLocaleString('en-US', {
-                          style: 'currency',
-                          currency: 'USD',
-                          minimumFractionDigits: 0,
-                        })} RL-USD`}
-                      ></div>
+                        title={`${item.day}: ${item.sales.toFixed(2)} RLUSD`}
+                      >
+                        <div className="opacity-0 group-hover:opacity-100 absolute -top-14 left-1/2 transform -translate-x-1/2 bg-slate-900 dark:bg-slate-700 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap transition-opacity shadow-lg">
+                          <p className="font-semibold">{item.sales.toFixed(2)} RLUSD</p>
+                          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 rotate-45 w-2 h-2 bg-slate-900 dark:bg-slate-700"></div>
+                        </div>
+                      </div>
                     </div>
-                    <p className="mt-2 text-sm font-medium text-gray-600 dark:text-gray-400">
+                    <p className="mt-3 text-xs font-medium text-slate-600 dark:text-slate-400">
                       {item.day}
                     </p>
                   </div>
                 ))
               ) : (
-                <div className="w-full text-center text-gray-500 dark:text-gray-400 py-12">
-                  No sales data available
+                <div className="w-full text-center text-slate-500 dark:text-slate-400 py-16">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center">
+                    <BarChart3 className="w-8 h-8 text-slate-300 dark:text-slate-600" strokeWidth={2} />
+                  </div>
+                  <p className="text-sm font-medium">No sales data available yet</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Start selling to see your analytics</p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Recent Activity */}
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+          {/* Quick Actions */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6 tracking-tight">
               Quick Actions
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <a
                 href="/products"
-                className="p-6 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg hover:border-blue-500 dark:hover:border-blue-500 transition-colors text-center"
+                className="group p-6 border-2 border-slate-100 dark:border-slate-800 rounded-2xl hover:border-[#007AFF] hover:shadow-md transition-all text-center bg-white dark:bg-slate-900"
               >
-                <svg
-                  className="w-12 h-12 mx-auto mb-3 text-gray-400 dark:text-gray-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                  />
-                </svg>
-                <h3 className="font-semibold text-gray-900 dark:text-white">Add Product</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Create a new listing
+                <div className="w-14 h-14 mx-auto mb-4 bg-[#EFF6FF] dark:bg-blue-950/30 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Plus className="w-7 h-7 text-[#007AFF]" strokeWidth={2} />
+                </div>
+                <h3 className="font-bold text-slate-900 dark:text-white mb-2 text-lg">Add Product</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Create a new product listing
                 </p>
               </a>
               <a
                 href="/products"
-                className="p-6 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg hover:border-blue-500 dark:hover:border-blue-500 transition-colors text-center"
+                className="group p-6 border-2 border-slate-100 dark:border-slate-800 rounded-2xl hover:border-[#007AFF] hover:shadow-md transition-all text-center bg-white dark:bg-slate-900"
               >
-                <svg
-                  className="w-12 h-12 mx-auto mb-3 text-gray-400 dark:text-gray-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
-                </svg>
-                <h3 className="font-semibold text-gray-900 dark:text-white">Manage Products</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Edit or remove items
+                <div className="w-14 h-14 mx-auto mb-4 bg-purple-50 dark:bg-purple-950/30 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <List className="w-7 h-7 text-purple-600" strokeWidth={2} />
+                </div>
+                <h3 className="font-bold text-slate-900 dark:text-white mb-2 text-lg">Manage Products</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Edit or update your listings
                 </p>
               </a>
-              <div className="p-6 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg text-center">
-                <svg
-                  className="w-12 h-12 mx-auto mb-3 text-gray-400 dark:text-gray-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  />
-                </svg>
-                <h3 className="font-semibold text-gray-900 dark:text-white">View Analytics</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Detailed insights
+              <div className="group p-6 border-2 border-slate-100 dark:border-slate-800 rounded-2xl hover:border-[#007AFF] hover:shadow-md transition-all text-center cursor-pointer bg-white dark:bg-slate-900">
+                <div className="w-14 h-14 mx-auto mb-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <BarChart3 className="w-7 h-7 text-emerald-600" strokeWidth={2} />
+                </div>
+                <h3 className="font-bold text-slate-900 dark:text-white mb-2 text-lg">Analytics</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Detailed business insights
                 </p>
               </div>
             </div>

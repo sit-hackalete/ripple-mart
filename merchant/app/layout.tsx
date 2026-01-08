@@ -27,7 +27,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 dark:bg-gray-950`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#F8F9FA] dark:bg-gray-950`}
       >
         <WalletProvider>
           <Navigation />

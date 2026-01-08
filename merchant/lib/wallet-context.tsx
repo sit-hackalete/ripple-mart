@@ -8,6 +8,7 @@ interface WalletContextType {
   walletAddress: string | null;
   network: string | null;
   isInstalled: boolean;
+  isInitializing: boolean;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   checkConnection: () => Promise<void>;
@@ -40,6 +41,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const [network, setNetwork] = useState<string | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   // Check if Crossmark is installed
   const checkInstalled = async () => {
@@ -173,6 +175,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const initialize = async () => {
       await checkInstalled();
       await checkConnection();
+      setIsInitializing(false);
     };
     void initialize();
 
@@ -219,6 +222,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         walletAddress,
         network,
         isInstalled,
+        isInitializing,
         connect,
         disconnect,
         checkConnection,

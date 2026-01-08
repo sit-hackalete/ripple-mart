@@ -3,9 +3,20 @@
 import { useWallet } from '@/lib/wallet-context';
 import { useEffect, useState } from 'react';
 import { Product } from '@/lib/models';
+import ImageUpload from '@/components/ImageUpload';
+import { 
+  Plus, 
+  Edit, 
+  Trash2, 
+  Eye, 
+  EyeOff, 
+  Package, 
+  X,
+  ImageIcon
+} from 'lucide-react';
 
 export default function ProductsPage() {
-  const { isConnected, walletAddress } = useWallet();
+  const { isConnected, walletAddress, isInitializing } = useWallet();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -14,7 +25,8 @@ export default function ProductsPage() {
     name: '',
     description: '',
     price: '',
-    imageUrl: '',
+    images: [] as string[],
+    imageUrl: '', // Legacy field for backward compatibility
     category: '',
     stock: '',
   });
@@ -71,13 +83,13 @@ export default function ProductsPage() {
           name: '',
           description: '',
           price: '',
+          images: [],
           imageUrl: '',
           category: '',
           stock: '',
         });
         fetchProducts();
       } else {
-        // Show user-friendly error message
         alert(data.error || 'Failed to save product. Please try again.');
       }
     } catch (error) {
@@ -92,6 +104,7 @@ export default function ProductsPage() {
       name: product.name,
       description: product.description,
       price: product.price.toString(),
+      images: product.images || [],
       imageUrl: product.imageUrl || '',
       category: product.category || '',
       stock: product.stock.toString(),
@@ -138,30 +151,67 @@ export default function ProductsPage() {
     }
   };
 
+  // Show loading screen while wallet is initializing
+  if (isInitializing) {
+    return (
+      <div className="container mx-auto px-6 py-20">
+        <div className="max-w-2xl mx-auto text-center">
+          <div className="mb-8">
+            {/* Animated gradient circle */}
+            <div className="relative w-24 h-24 mx-auto mb-8">
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 animate-spin" style={{ animationDuration: '3s' }} />
+              <div className="absolute inset-2 rounded-full bg-white dark:bg-gray-900 flex items-center justify-center">
+                <Package className="w-10 h-10 text-blue-600 dark:text-blue-400" strokeWidth={2} />
+              </div>
+            </div>
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-3 tracking-tight">
+              Connecting Wallet
+            </h2>
+            <p className="text-base text-slate-600 dark:text-slate-400 mb-6">
+              Please wait while we establish your connection...
+            </p>
+            {/* Animated dots */}
+            <div className="flex justify-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="w-2 h-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="w-2 h-2 rounded-full bg-pink-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show connect wallet message if not connected
   if (!isConnected || !walletAddress) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg p-12 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Connect Your Wallet
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            Please connect your Crossmark wallet to manage products.
-          </p>
+      <div className="container mx-auto px-6 py-20">
+        <div className="max-w-2xl mx-auto text-center">
+          <div className="mb-8">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg">
+              <Package className="w-10 h-10 text-white" strokeWidth={2} />
+            </div>
+            <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-4 tracking-tight">
+              Product Management
+            </h2>
+            <p className="text-lg text-slate-600 dark:text-slate-400 mb-8">
+              Connect your wallet to manage your product listings
+            </p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex justify-between items-center mb-8">
+    <div className="container mx-auto px-6 py-8">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Product Management
+          <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">
+            Products
           </h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Manage your product listings
+          <p className="text-lg text-slate-600 dark:text-slate-400">
+            Manage your store inventory
           </p>
         </div>
         <button
@@ -171,97 +221,143 @@ export default function ProductsPage() {
               name: '',
               description: '',
               price: '',
+              images: [],
               imageUrl: '',
               category: '',
               stock: '',
             });
             setShowAddModal(true);
           }}
-          className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+          className="flex items-center gap-2 px-5 py-3 bg-[#007AFF] hover:bg-[#0066DD] text-white rounded-full transition-all font-semibold shadow-sm"
         >
-          + Add Product
+          <Plus className="w-5 h-5" strokeWidth={2} />
+          Add Product
         </button>
       </div>
 
       {loading ? (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading products...</p>
+        <div className="text-center py-20">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 dark:border-slate-800 border-t-[#007AFF]"></div>
+          <p className="mt-6 text-slate-600 dark:text-slate-400 text-lg">Loading products...</p>
         </div>
       ) : products.length === 0 ? (
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-12 text-center">
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            No products yet. Add your first product to get started!
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-16 text-center shadow-sm">
+          <div className="w-20 h-20 mx-auto mb-6 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center">
+            <Package className="w-10 h-10 text-slate-300 dark:text-slate-600" strokeWidth={2} />
+          </div>
+          <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">No products yet</h3>
+          <p className="text-slate-600 dark:text-slate-400 mb-8 text-lg">
+            Start building your catalog by adding your first product
           </p>
+          <button
+            onClick={() => {
+              setEditingProduct(null);
+              setFormData({
+                name: '',
+                description: '',
+                price: '',
+                images: [],
+                imageUrl: '',
+                category: '',
+                stock: '',
+              });
+              setShowAddModal(true);
+            }}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[#007AFF] hover:bg-[#0066DD] text-white rounded-full transition-all font-semibold shadow-sm"
+          >
+            <Plus className="w-5 h-5" strokeWidth={2} />
+            Add Your First Product
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {products.map((product) => (
             <div
               key={product._id}
-              className={`bg-white dark:bg-gray-900 rounded-lg shadow overflow-hidden ${
+              className={`group bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden hover:shadow-lg transition-all ${
                 !product.isActive ? 'opacity-60' : ''
               }`}
             >
-              {product.imageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={product.imageUrl}
-                  alt={product.name}
-                  className="w-full h-48 object-cover"
-                />
-              )}
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+              <div className="aspect-square w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                {(product.images && product.images.length > 0) || product.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={product.images?.[0] || product.imageUrl || ''}
+                    alt={product.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <div className="w-20 h-20 bg-slate-200 dark:bg-slate-700 rounded-2xl flex items-center justify-center">
+                      <ImageIcon className="w-10 h-10 text-slate-400 dark:text-slate-500" strokeWidth={2} />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="p-5">
+                <div className="flex justify-between items-start mb-3">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white line-clamp-1 flex-1">
                     {product.name}
                   </h3>
                   <span
-                    className={`px-2 py-1 text-xs font-medium rounded ${
+                    className={`px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap ml-2 ${
                       product.isActive
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
+                        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                     }`}
                   >
                     {product.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </div>
-                <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-2">
+                <p className="text-slate-600 dark:text-slate-400 text-sm mb-4 line-clamp-2 min-h-[40px]">
                   {product.description}
                 </p>
-                <div className="flex justify-between items-center mb-4">
+                <div className="flex justify-between items-center mb-5 pb-5 border-b border-slate-100 dark:border-slate-800">
                   <div>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {product.price.toLocaleString('en-US', {
-                        style: 'currency',
-                        currency: 'USD',
-                        minimumFractionDigits: 2,
-                      })}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500">RL-USD</p>
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-2xl font-bold text-[#007AFF]">
+                        {product.price.toFixed(2)}
+                      </p>
+                      <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">RLUSD</p>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Stock: {product.stock}
-                  </p>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                      Stock: {product.stock}
+                    </p>
+                    {product.category && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        {product.category}
+                      </p>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleEdit(product)}
-                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium"
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-[#007AFF] hover:bg-[#0066DD] text-white rounded-xl transition-all text-sm font-semibold"
+                    title="Edit product"
                   >
+                    <Edit className="w-4 h-4" strokeWidth={2} />
                     Edit
                   </button>
                   <button
                     onClick={() => handleToggleActive(product)}
-                    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-lg transition-colors text-sm font-medium"
+                    className="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl transition-all text-sm font-semibold"
+                    title={product.isActive ? 'Deactivate product' : 'Activate product'}
                   >
-                    {product.isActive ? 'Deactivate' : 'Activate'}
+                    {product.isActive ? (
+                      <EyeOff className="w-4 h-4" strokeWidth={2} />
+                    ) : (
+                      <Eye className="w-4 h-4" strokeWidth={2} />
+                    )}
                   </button>
                   <button
                     onClick={() => product._id && handleDelete(product._id)}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm font-medium"
+                    className="px-3 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all text-sm font-semibold"
+                    title="Delete product"
                   >
-                    Delete
+                    <Trash2 className="w-4 h-4" strokeWidth={2} />
                   </button>
                 </div>
               </div>
@@ -272,132 +368,144 @@ export default function ProductsPage() {
 
       {/* Add/Edit Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-8 py-6 flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
                   {editingProduct ? 'Edit Product' : 'Add New Product'}
                 </h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  {editingProduct ? 'Update product information' : 'Fill in the details to create a new product'}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowAddModal(false);
+                  setEditingProduct(null);
+                }}
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+              >
+                <X className="w-6 h-6" strokeWidth={2} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
+                  Product Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Wireless Headphones"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-[#007AFF] focus:border-transparent transition-all"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
+                  Description <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  placeholder="Describe your product in detail..."
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
+                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-[#007AFF] focus:border-transparent resize-none transition-all"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
+                    Price (RLUSD) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    placeholder="0.00"
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-[#007AFF] focus:border-transparent transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
+                    Stock Quantity <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    placeholder="0"
+                    value={formData.stock}
+                    onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-[#007AFF] focus:border-transparent transition-all"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
+                  Category
+                </label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#007AFF] focus:border-transparent transition-all"
+                >
+                  <option value="">Select a category</option>
+                  <option value="Electronics">Electronics</option>
+                  <option value="Fashion">Fashion</option>
+                  <option value="Home">Home</option>
+                  <option value="Beauty">Beauty</option>
+                  <option value="Sports">Sports</option>
+                  <option value="Books">Books</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
+                  Product Images
+                </label>
+                <ImageUpload
+                  images={formData.images}
+                  onImagesChange={(images) => setFormData({ ...formData, images })}
+                  maxImages={5}
+                />
+              </div>
+              
+              <div className="flex justify-end gap-3 pt-6 border-t border-slate-100 dark:border-slate-800">
                 <button
+                  type="button"
                   onClick={() => {
                     setShowAddModal(false);
                     setEditingProduct(null);
                   }}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  className="px-6 py-3 border-2 border-slate-200 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all font-semibold"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-3 bg-[#007AFF] hover:bg-[#0066DD] text-white rounded-xl transition-all font-semibold shadow-sm"
+                >
+                  {editingProduct ? 'Update Product' : 'Create Product'}
                 </button>
               </div>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Product Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Description *
-                  </label>
-                  <textarea
-                    required
-                    rows={4}
-                    value={formData.description}
-                    onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Price (RL-USD) *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      required
-                      value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Stock *
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      required
-                      value={formData.stock}
-                      onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Category
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Image URL
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.imageUrl}
-                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="flex justify-end gap-4 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAddModal(false);
-                      setEditingProduct(null);
-                    }}
-                    className="px-6 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
-                  >
-                    {editingProduct ? 'Update' : 'Create'} Product
-                  </button>
-                </div>
-              </form>
-            </div>
+            </form>
           </div>
         </div>
       )}
     </div>
   );
 }
-
