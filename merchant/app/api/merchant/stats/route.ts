@@ -26,6 +26,8 @@ export async function GET(request: NextRequest) {
         totalSales: 42,
         totalProducts: 15,
         recentSales: 8,
+        lowStockItems: 3,
+        isDemo: true, // Flag to indicate this is demo data
         chartData: [
           { day: 'Mon', sales: 3200 },
           { day: 'Tue', sales: 2800 },
@@ -79,6 +81,13 @@ export async function GET(request: NextRequest) {
       createdAt: { $gte: sevenDaysAgo },
     });
 
+    // Get low stock items (stock < 10)
+    const lowStockItems = await productsCollection.countDocuments({
+      merchantWalletAddress: walletAddress,
+      isActive: true,
+      stock: { $lt: 10 },
+    });
+
     // If no real data, return dummy data
     if (totalSales === 0) {
       return NextResponse.json({
@@ -87,6 +96,8 @@ export async function GET(request: NextRequest) {
         totalSales: 42,
         totalProducts: totalProducts || 15,
         recentSales: 8,
+        lowStockItems: lowStockItems || 3,
+        isDemo: true, // Flag to indicate this is demo data
         chartData: [
           { day: 'Mon', sales: 3200 },
           { day: 'Tue', sales: 2800 },
@@ -133,6 +144,8 @@ export async function GET(request: NextRequest) {
       totalSales,
       totalProducts,
       recentSales,
+      lowStockItems,
+      isDemo: false, // Real data!
       chartData,
     });
   } catch (error) {
@@ -144,6 +157,8 @@ export async function GET(request: NextRequest) {
       totalSales: 42,
       totalProducts: 15,
       recentSales: 8,
+      lowStockItems: 3,
+      isDemo: true, // Flag to indicate this is demo data
       chartData: [
         { day: 'Mon', sales: 3200 },
         { day: 'Tue', sales: 2800 },

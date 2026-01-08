@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 export default function ProductsPage() {
-  const { isConnected, walletAddress } = useWallet();
+  const { isConnected, walletAddress, isLoading: walletLoading } = useWallet();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -217,6 +217,18 @@ export default function ProductsPage() {
       console.error('Error updating product:', error);
     }
   };
+
+  // Show loading screen while wallet is initializing
+  if (walletLoading) {
+    return (
+      <div className="container mx-auto px-6 py-20">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 dark:border-slate-800 border-t-[#007AFF]"></div>
+          <p className="mt-6 text-slate-600 dark:text-slate-400 text-lg">Connecting to wallet...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Show loading screen while products are loading
   if (loading) {
