@@ -14,7 +14,6 @@ import {
   X,
   ImageIcon,
   Search,
-  Filter,
   AlertCircle
 } from 'lucide-react';
 
@@ -771,7 +770,7 @@ export default function ProductsPage() {
                 Delete Product?
               </h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                Are you sure you want to delete <span className="font-semibold text-slate-900 dark:text-white">"{productToDelete.name}"</span>? This action cannot be undone.
+                Are you sure you want to delete <span className="font-semibold text-slate-900 dark:text-white">&quot;{productToDelete.name}&quot;</span>? This action cannot be undone.
               </p>
               
               {/* Product Preview */}

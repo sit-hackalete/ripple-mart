@@ -12,7 +12,6 @@ import {
   ArrowUpRight,
   AlertTriangle,
   ExternalLink,
-  ArrowUpDown,
   Clock,
   CheckCircle,
   Truck
@@ -206,7 +205,7 @@ export default function Dashboard() {
               {getGreeting()}, {merchantName}
             </h1>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              Here's what's happening with your store today
+              Here&apos;s what&apos;s happening with your store today
             </p>
           </div>
           <a

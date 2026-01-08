@@ -166,6 +166,7 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }: I
                 title={index === 0 ? 'Main image' : 'Click to set as main image'}
               >
                 {/* Image */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={url}
                   alt={`Product image ${index + 1}`}
