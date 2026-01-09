@@ -289,7 +289,7 @@ export default function DIDPage() {
             )}
           </div>
 
-          {status === 'did_ready' && didStatus.didIpfsUri && (
+          {status === 'did_ready' && didStatus?.didIpfsUri && (
             <>
               <AnchorDIDButton
                 ipfsUri={didStatus.didIpfsUri}
@@ -311,7 +311,7 @@ export default function DIDPage() {
             </>
           )}
 
-          {status === 'anchored_on_xrpl' && didStatus.didAnchoredTxHash && (
+          {status === 'anchored_on_xrpl' && didStatus?.didAnchoredTxHash && (
             <div className="mt-4 space-y-2">
               <div className="text-sm">
                 <span className="font-medium text-gray-700 dark:text-gray-300">Transaction Hash:</span>{' '}

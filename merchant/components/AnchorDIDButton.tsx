@@ -1,28 +1,31 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useWallet } from '@/lib/wallet-context';
-import sdk from '@crossmarkio/sdk';
-import type { DIDSet } from 'xrpl';
+import { useState } from "react";
+import { useWallet } from "@/lib/wallet-context";
+import sdk from "@crossmarkio/sdk";
+import type { DIDSet } from "xrpl";
 
 interface AnchorDIDButtonProps {
   ipfsUri: string;
   onAnchored?: (txHash: string) => void;
 }
 
-export default function AnchorDIDButton({ ipfsUri, onAnchored }: AnchorDIDButtonProps) {
+export default function AnchorDIDButton({
+  ipfsUri,
+  onAnchored,
+}: AnchorDIDButtonProps) {
   const { isConnected, walletAddress } = useWallet();
   const [isAnchoring, setIsAnchoring] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleAnchor = async () => {
     if (!isConnected || !walletAddress) {
-      setError('Please connect your wallet first');
+      setError("Please connect your wallet first");
       return;
     }
 
     if (!ipfsUri) {
-      setError('IPFS URI is required');
+      setError("IPFS URI is required");
       return;
     }
 
@@ -33,74 +36,78 @@ export default function AnchorDIDButton({ ipfsUri, onAnchored }: AnchorDIDButton
       // Check if Crossmark is installed
       const installed = await sdk.methods.isInstalled();
       if (!installed) {
-        throw new Error('Crossmark wallet not found. Please install the Crossmark extension.');
+        throw new Error(
+          "Crossmark wallet not found. Please install the Crossmark extension."
+        );
       }
 
       // Validate IPFS URI format
-      if (!ipfsUri.startsWith('ipfs://')) {
-        throw new Error('Invalid IPFS URI format. Must start with ipfs://');
+      if (!ipfsUri.startsWith("ipfs://")) {
+        throw new Error("Invalid IPFS URI format. Must start with ipfs://");
       }
 
       // Convert IPFS URI to hex (XRPL requires URI as hex-encoded string)
       // Use TextEncoder for browser compatibility instead of Buffer
       // XRPL typically expects uppercase hex
       const uriHex = Array.from(new TextEncoder().encode(ipfsUri))
-        .map(b => b.toString(16).padStart(2, '0').toUpperCase())
-        .join('');
-      
+        .map((b) => b.toString(16).padStart(2, "0").toUpperCase())
+        .join("");
+
       // XRPL URI field has a max length of 256 bytes (512 hex characters)
       // But hex encoding doubles the length, so max original URI is ~128 bytes
       if (uriHex.length > 512) {
-        throw new Error(`URI too long. Max length is 256 bytes (${uriHex.length} hex chars provided)`);
+        throw new Error(
+          `URI too long. Max length is 256 bytes (${uriHex.length} hex chars provided)`
+        );
       }
 
       // Build DIDSet transaction
       // Note: Crossmark will auto-fill Fee, Sequence, LastLedgerSequence, etc.
       const transaction: DIDSet = {
-        TransactionType: 'DIDSet',
+        TransactionType: "DIDSet",
         Account: walletAddress,
         URI: uriHex,
       };
 
       // Debug: Log transaction before sending
-      console.log('DIDSet Transaction:', {
+      console.log("DIDSet Transaction:", {
         TransactionType: transaction.TransactionType,
         Account: transaction.Account,
         URI: transaction.URI,
-        URILength: transaction.URI.length,
+        URILength: transaction.URI?.length ?? 0,
         originalIpfsUri: ipfsUri,
         originalUriLength: ipfsUri.length,
       });
 
       // Sign and submit transaction using Crossmark
       // Try signAndSubmitAndWait first, fallback to sign + submit if needed
-      console.log('Calling Crossmark signAndSubmitAndWait...');
-      
+      console.log("Calling Crossmark signAndSubmitAndWait...");
+
       let txHash: string;
-      
+
       try {
         // Method 1: Try signAndSubmitAndWait (preferred - handles everything)
-        console.log('=== CALLING CROSSMARK signAndSubmitAndWait ===');
+        console.log("=== CALLING CROSSMARK signAndSubmitAndWait ===");
         const result = await sdk.methods.signAndSubmitAndWait(transaction);
-        
+
         // Log in multiple ways to ensure we see it
-        console.log('=== FULL CROSSMARK RESULT (JSON) ===');
+        console.log("=== FULL CROSSMARK RESULT (JSON) ===");
         console.log(JSON.stringify(result, null, 2));
-        console.log('=== FULL CROSSMARK RESULT (OBJECT) ===');
+        console.log("=== FULL CROSSMARK RESULT (OBJECT) ===");
         console.log(result);
-        console.log('=== FULL CROSSMARK RESULT (TABLE) ===');
+        console.log("=== FULL CROSSMARK RESULT (TABLE) ===");
         console.table(result);
-        console.log('=== RESULT TYPE ===');
+        console.log("=== RESULT TYPE ===");
         console.log(typeof result);
-        console.log('=== RESULT KEYS ===');
+        console.log("=== RESULT KEYS ===");
         console.log(Object.keys(result || {}));
         if (result?.response) {
-          console.log('=== RESPONSE KEYS ===');
+          console.log("=== RESPONSE KEYS ===");
           console.log(Object.keys(result.response));
-          console.log('=== RESPONSE TYPE ===');
+          console.log("=== RESPONSE TYPE ===");
           console.log(typeof result.response);
         }
-        
+
         // Crossmark response structure can vary. Check all possible locations:
         // 1. result.response.hash (most common)
         // 2. result.response.data.hash
@@ -108,56 +115,70 @@ export default function AnchorDIDButton({ ipfsUri, onAnchored }: AnchorDIDButton
         // 4. result.data.hash
         // 5. result.response.txJSON (if hash is in txJSON)
         // 6. result.response.meta (transaction metadata might have hash)
-        const hash = 
-          result?.response?.hash || 
-          result?.response?.data?.hash ||
-          result?.response?.txJSON?.hash ||
-          result?.hash ||
-          result?.data?.hash ||
-          result?.response?.meta?.TransactionResult?.hash;
-        
+        type ResponseType = {
+          hash?: string;
+          data?: { hash?: string };
+          txJSON?: string | { hash?: string } | unknown;
+          meta?: { TransactionResult?: { hash?: string } };
+          id?: string;
+        };
+        const response = result?.response as ResponseType | undefined;
+        const hash =
+          response?.hash ||
+          response?.data?.hash ||
+          (typeof response?.txJSON === "object" &&
+          response?.txJSON &&
+          "hash" in response.txJSON
+            ? (response.txJSON as { hash?: string }).hash
+            : undefined) ||
+          (result as { hash?: string; data?: { hash?: string } })?.hash ||
+          (result as { hash?: string; data?: { hash?: string } })?.data?.hash ||
+          response?.meta?.TransactionResult?.hash;
+
         // If still no hash, check if we can get it from the transaction result
         // Sometimes Crossmark returns the hash in a different format
         let extractedHash = hash;
-        
-        if (!extractedHash && result?.response) {
+
+        if (!extractedHash && response) {
           // Try to extract from txJSON if it's a string
-          if (typeof result.response.txJSON === 'string') {
+          if (typeof response.txJSON === "string") {
             try {
-              const txJSON = JSON.parse(result.response.txJSON);
+              const txJSON = JSON.parse(response.txJSON) as { hash?: string };
               extractedHash = txJSON.hash;
             } catch (e) {
               // Not JSON, ignore
             }
           }
-          
+
           // Check if response has a transaction identifier
-          if (!extractedHash && result.response.id) {
+          if (!extractedHash && response.id) {
             // Sometimes the id IS the hash
-            extractedHash = result.response.id;
+            extractedHash = response.id;
           }
         }
-        
-        console.log('Extracted hash:', extractedHash);
-        console.log('Response structure:', {
+
+        console.log("Extracted hash:", extractedHash);
+        console.log("Response structure:", {
           hasResponse: !!result?.response,
-          hasHash: !!result?.hash,
+          hasHash: !!(result as { hash?: string })?.hash,
           responseKeys: result?.response ? Object.keys(result.response) : [],
           resultKeys: result ? Object.keys(result) : [],
           responseType: typeof result?.response,
           responseString: JSON.stringify(result?.response),
         });
-        
+
         if (!extractedHash) {
-          console.error('No hash found in response. Full result:', result);
+          console.error("No hash found in response. Full result:", result);
           // Transaction might have succeeded but we can't get the hash
           // In this case, we'll need to get it from the user or check the transaction
-          throw new Error('Transaction may have succeeded, but hash not found in response. Please check Crossmark notification for transaction hash.');
+          throw new Error(
+            "Transaction may have succeeded, but hash not found in response. Please check Crossmark notification for transaction hash."
+          );
         }
-        
+
         txHash = extractedHash;
       } catch (crossmarkError: any) {
-        console.error('signAndSubmitAndWait failed, error details:', {
+        console.error("signAndSubmitAndWait failed, error details:", {
           error: crossmarkError,
           message: crossmarkError?.message,
           code: crossmarkError?.code,
@@ -165,48 +186,57 @@ export default function AnchorDIDButton({ ipfsUri, onAnchored }: AnchorDIDButton
           response: crossmarkError?.response,
           stack: crossmarkError?.stack,
         });
-        
+
         // Method 2: Fallback - try sign and submit separately
-        console.log('Trying sign + submit separately as fallback...');
+        console.log("Trying sign + submit separately as fallback...");
         try {
           // First sign the transaction
           const signResult = await sdk.methods.sign(transaction);
-          console.log('Sign result:', signResult);
-          
-          if (!signResult?.response?.signedTransaction) {
-            throw new Error('Sign failed: No signed transaction returned');
+          console.log("Sign result:", signResult);
+
+          type SignResultType = { response?: { signedTransaction?: string } };
+          const signResultTyped = signResult as SignResultType | undefined;
+          const signResponse = signResultTyped?.response;
+          if (!signResponse?.signedTransaction) {
+            throw new Error("Sign failed: No signed transaction returned");
           }
-          
+
           // Then submit the signed transaction
-          const submitResult = await sdk.methods.submit(signResult.response.signedTransaction);
-          console.log('Submit result:', submitResult);
-          
-          const hash = 
-            submitResult?.response?.hash ||
-            submitResult?.response?.data?.hash ||
-            submitResult?.hash;
-          
+          // submit method signature: (address: string, txblob: string, opts?: ExtendedSignOpts) => string
+          const hash = sdk.methods.submit(
+            walletAddress,
+            signResponse.signedTransaction
+          );
+          console.log("Submit result (hash):", hash);
+
           if (!hash) {
-            throw new Error('Submit failed: No transaction hash returned');
+            throw new Error("Submit failed: No transaction hash returned");
           }
-          
+
           txHash = hash;
-          console.log('Successfully submitted via sign + submit method. Hash:', txHash);
+          console.log(
+            "Successfully submitted via sign + submit method. Hash:",
+            txHash
+          );
         } catch (fallbackError: any) {
-          console.error('Fallback method also failed:', fallbackError);
+          console.error("Fallback method also failed:", fallbackError);
           // Re-throw original error with fallback info
           throw new Error(
-            `Crossmark transaction failed: ${crossmarkError?.message || 'Unknown error'}. ` +
-            `Fallback method also failed: ${fallbackError?.message || 'Unknown'}. ` +
-            `Check browser console for full error details.`
+            `Crossmark transaction failed: ${
+              crossmarkError?.message || "Unknown error"
+            }. ` +
+              `Fallback method also failed: ${
+                fallbackError?.message || "Unknown"
+              }. ` +
+              `Check browser console for full error details.`
           );
         }
       }
 
       // Update MongoDB via API
-      const anchorResponse = await fetch('/api/did/anchor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const anchorResponse = await fetch("/api/did/anchor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           walletAddress,
           transactionHash: txHash,
@@ -215,7 +245,7 @@ export default function AnchorDIDButton({ ipfsUri, onAnchored }: AnchorDIDButton
 
       if (!anchorResponse.ok) {
         const errorData = await anchorResponse.json();
-        throw new Error(errorData.error || 'Failed to update anchor status');
+        throw new Error(errorData.error || "Failed to update anchor status");
       }
 
       // Success!
@@ -226,17 +256,17 @@ export default function AnchorDIDButton({ ipfsUri, onAnchored }: AnchorDIDButton
       // Show success message
       alert(`DID successfully anchored on XRPL!\nTransaction Hash: ${txHash}`);
     } catch (err: any) {
-      console.error('Error anchoring DID:', err);
-      
+      console.error("Error anchoring DID:", err);
+
       // Handle user rejection
       if (
-        err?.message?.toLowerCase().includes('rejected') ||
-        err?.message?.toLowerCase().includes('cancel') ||
-        err?.message?.toLowerCase().includes('denied')
+        err?.message?.toLowerCase().includes("rejected") ||
+        err?.message?.toLowerCase().includes("cancel") ||
+        err?.message?.toLowerCase().includes("denied")
       ) {
-        setError('Transaction was cancelled');
+        setError("Transaction was cancelled");
       } else {
-        setError(err?.message || 'Failed to anchor DID on XRPL');
+        setError(err?.message || "Failed to anchor DID on XRPL");
       }
     } finally {
       setIsAnchoring(false);
@@ -258,7 +288,7 @@ export default function AnchorDIDButton({ ipfsUri, onAnchored }: AnchorDIDButton
         disabled={isAnchoring || !ipfsUri}
         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
       >
-        {isAnchoring ? 'Anchoring DID...' : 'Anchor DID on XRPL'}
+        {isAnchoring ? "Anchoring DID..." : "Anchor DID on XRPL"}
       </button>
       {error && (
         <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
