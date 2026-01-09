@@ -29,28 +29,50 @@ A modern, professional ecommerce platform for merchants, built with Next.js, Typ
 ### 5-Minute Setup
 
 1. **Install dependencies**:
+
 ```bash
 cd merchant
 npm install
 ```
 
 2. **Set up MongoDB** (see [detailed guide](./docs/MONGODB_SETUP.md)):
+
    - Create MongoDB Atlas cluster (or use local MongoDB)
    - Get connection string
 
 3. **Configure environment**:
+
 ```bash
 # Create .env.local file
 touch .env.local
 ```
 
 Add this to `.env.local`:
+
 ```env
-MONGODB_URI=mongodb+srv://username:password@cluster.xxxxx.mongodb.net/
+# MongoDB Configuration
+MONGODB_URI=your_mongodb_connection_string
 MONGODB_DB_NAME=ripple_mart
+
+# Pinata IPFS Configuration (for DID publishing)
+PINATA_JWT=your_pinata_jwt_token
+IPFS_GATEWAY_BASE=https://gateway.pinata.cloud/ipfs/
+# Optional: Custom IPFS gateway for DID resolution (fallback if public gateways fail)
+CUSTOM_IPFS_GATEWAY=https://your-custom-gateway.mypinata.cloud
+
+# App Configuration (optional)
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-4. **Start development server**:
+**Getting a Pinata JWT:**
+
+1. Sign up at [Pinata](https://pinata.cloud)
+2. Go to API Keys section
+3. Create a new API key with `pinJSONToIPFS` permission
+4. Copy the JWT token and add it to `.env.local`
+
+5. Run the development server:
+
 ```bash
 npm run dev
 ```
@@ -60,7 +82,8 @@ npm run dev
    - Connect your Crossmark wallet
    - Add your first product!
 
-📖 **Need help?** 
+📖 **Need help?**
+
 - **New to MongoDB?** Start with [Beginner's Guide](./docs/MONGODB_BEGINNER_GUIDE.md) (easiest!)
 - **Quick setup:** [Quick Start Guide](./docs/QUICK_START.md)
 - **Detailed guide:** [MongoDB Setup Guide](./docs/MONGODB_SETUP.md)
@@ -110,11 +133,13 @@ merchant/
 ## Database Models
 
 ### Merchant
+
 - `walletAddress`: Ripple wallet address
 - `name`, `email`: Optional merchant info
 - `createdAt`, `updatedAt`: Timestamps
 
 ### Product
+
 - `merchantWalletAddress`: Associated merchant wallet
 - `name`, `description`: Product details
 - `price`: Price in RLUSD
@@ -124,6 +149,7 @@ merchant/
 - `createdAt`, `updatedAt`: Timestamps
 
 ### Sale
+
 - `merchantWalletAddress`: Merchant receiving payment
 - `productId`, `productName`: Product information
 - `quantity`, `totalAmount`: Transaction details
@@ -144,10 +170,12 @@ This platform uses Crossmark wallet for wallet connections. The integration:
 ## API Routes
 
 ### Merchant
+
 - `POST /api/merchant/connect` - Connect merchant wallet
 - `GET /api/merchant/stats?walletAddress=...` - Get merchant statistics
 
 ### Products
+
 - `GET /api/products?walletAddress=...` - Get all products for a merchant
 - `POST /api/products` - Create a new product
 - `PUT /api/products/[id]` - Update a product
@@ -182,6 +210,7 @@ The app will automatically create collections on first use. For production:
 ## 🎯 Use Cases
 
 ### For Merchants
+
 - Manage product catalog
 - Track sales and revenue
 - Monitor business analytics
@@ -189,6 +218,7 @@ The app will automatically create collections on first use. For production:
 - View transaction history
 
 ### For Developers
+
 - Modern Next.js 16 app architecture
 - MongoDB integration patterns
 - Wallet connection examples
@@ -241,24 +271,28 @@ PORT=3000                            # Server port
 ### Common Issues
 
 **MongoDB Connection Failed**
+
 - Check `.env.local` exists and has correct values
 - Verify MongoDB Atlas cluster is active
 - Ensure IP is whitelisted (0.0.0.0/0 for dev)
 - Restart dev server after changing env vars
 
 **Wallet Won't Connect**
+
 - Install Crossmark extension
 - Refresh page after installation
 - Check extension is enabled
 - Try different browser if issues persist
 
 **Products Not Saving**
+
 - Verify wallet is connected
 - Check MongoDB connection is successful
 - Review browser console for errors
 - Confirm user has database write permissions
 
 **Port Already in Use**
+
 ```bash
 # Use different port
 PORT=3001 npm run dev
@@ -292,11 +326,13 @@ MIT License - see LICENSE file for details
 Need help? Check these resources:
 
 ### Setup & Configuration
+
 1. 📋 [Quick Start Guide](./docs/QUICK_START.md)
 2. 🗄️ [MongoDB Setup Guide](./docs/MONGODB_SETUP.md)
 3. ✅ [Setup Checklist](./docs/CHECKLIST.md)
 
 ### Design & Development
+
 4. 🎨 [Design System](./docs/DESIGN_SYSTEM.md) - Complete design guidelines
 5. 🎯 [Quick Reference](./docs/QUICK_REFERENCE.md) - Copy-paste patterns
 6. 🌈 [Color Palette](./docs/COLOR_PALETTE.md) - All colors and usage

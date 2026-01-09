@@ -41,12 +41,9 @@ const getNetworkString = (network: NetworkType): string | null => {
 };
 
 export function WalletProvider({ children }: { children: ReactNode }) {
-  const [walletAddress, setWalletAddress] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("walletAddress");
-    }
-    return null;
-  });
+  // Always initialize with null to avoid hydration mismatch
+  // We'll load from localStorage in useEffect after mount
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [network, setNetwork] = useState<string | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -243,6 +240,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Initialize and set up event listeners
   useEffect(() => {
+    // Load wallet address from localStorage after hydration to avoid hydration mismatch
+    if (typeof window !== "undefined") {
+      const storedAddress = localStorage.getItem("walletAddress");
+      if (storedAddress) {
+        setWalletAddress(storedAddress);
+      }
+    }
+
     // Set up event listeners for Crossmark events
     const handleSignOut = () => {
       setIsConnected(false);
